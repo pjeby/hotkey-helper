@@ -3,7 +3,7 @@
 	"name": "Hotkey Helper",
 	"version": "0.0.1",
 	"minAppVersion": "0.11.3",
-	"description": "Easy access/overview of hotkeys assigned by third-party plugins (including conflicts)",
+	"description": "Easy access, overview, and conflict management for Obsidian third-party plugin hotkey assignments",
 	"author": "PJ Eby",
 	"authorUrl": "https://github.com/pjeby"
 }
