@@ -1,0 +1,13 @@
+{
+  "name": "hotkey-helper",
+  "scripts": {
+    "dev": "rollup --config rollup.config.js -w",
+    "build": "rollup --config rollup.config.js"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "monkey-around": "^2.1",
+    "obsidian-rollup-presets": "github:pjeby/obsidian-rollup-presets",
+    "rollup": "^2.38.1"
+  }
+}
