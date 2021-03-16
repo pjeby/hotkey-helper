@@ -144,7 +144,11 @@ export default class HotkeyHelper extends Plugin {
             const assigned = commands[id].filter(info => info.hotkeys.length);
             const conflicts = assigned.filter(info => info.hotkeys.filter(k => assignedKeyCount[k]>1).length).length;
 
-            btn.setTooltip(`Configure hotkeys${"\n"}(${assigned.length}/${commands[id].length} assigned${conflicts ? "; "+conflicts+" conflicts" : ""})`);
+            btn.setTooltip(
+                `Configure hotkeys${"\n"}(${assigned.length}/${commands[id].length} assigned${
+                    conflicts ? "; "+conflicts+" conflicting" : ""
+                })`
+            );
             btn.extraSettingsEl.toggleClass("mod-error", !!conflicts);
             btn.extraSettingsEl.show();
         }
