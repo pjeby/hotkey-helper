@@ -1,6 +1,6 @@
 ## Hotkey Helper: Easier Hotkey and Options Management for Obsidian
 
-This plugin makes it easier to manage plugins' hotkeys and options in [Obsidian.md](https://obsidian.md), by displaying "options" and "hotkeys" icons in the settings next to each plugin, that you can use to jump to that plugin's options or hotkey assignments.
+This plugin makes it easier to manage plugins' hotkeys and options in [Obsidian.md](https://obsidian.md), by adding icons next to each plugin (in the Community Plugins listing) that you can use to open that plugin's options or hotkey assignments.
 
 ![](https://raw.githubusercontent.com/pjeby/hotkey-helper/master/hotkey-helper.gif)
 
