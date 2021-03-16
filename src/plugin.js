@@ -15,7 +15,29 @@ function pluginSettingsAreOpen(app) {
 
 export default class HotkeyHelper extends Plugin {
 
-    onload() { this.app.workspace.onLayoutReady(this.whenReady.bind(this)); }
+    onload() {
+        const workspace = this.app.workspace;
+
+        this.registerEvent( workspace.on("plugin-settings:before-display", () => {
+            this.hotkeyButtons = {};
+        }) );
+        this.registerEvent( workspace.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
+        this.registerEvent( workspace.on("plugin-settings:plugin-control", (setting, manifest, enabled) => {
+            setting.addExtraButton(btn => {
+                btn.setIcon("any-key");
+                btn.onClick(() => this.showHotkeysFor(manifest.name+":"))
+                btn.extraSettingsEl.toggle(enabled)
+                this.hotkeyButtons[manifest.id] = btn;
+            });
+        }) );
+
+        // Refresh the buttons when commands are added or removed
+        const requestRefresh = debounce(this.refreshButtons.bind(this), 50, true);
+        function refresher(old) { return function(...args){ requestRefresh(); return old.apply(this, args); }; }
+        this.register(around(app.commands, {addCommand:   refresher, removeCommand:   refresher}));
+
+        workspace.onLayoutReady(this.whenReady.bind(this));
+    }
 
     whenReady() {
         const
@@ -27,7 +49,7 @@ export default class HotkeyHelper extends Plugin {
         if (pluginsTab) {
             this.register(
                 // Hook into the display() method of the community plugins settings tab
-                around(pluginsTab, {display: this.hookPluginsDisplay.bind(this)})
+                around(pluginsTab, {display: this.addPluginSettingEvents.bind(this)})
             );
 
             // Now force a refresh if the tab is currently visible (to show our new buttons)
@@ -41,19 +63,20 @@ export default class HotkeyHelper extends Plugin {
         }
     }
 
-    hookPluginsDisplay(old) {
-        const plugin = this, app = this.app;
+    addPluginSettingEvents(old) {
+        const app = this.app;
+        let in_event = false;
 
-        // Refresh the buttons when commands are added or removed
-        this.requestRefresh = debounce(this.refreshHotkeys.bind(this), 100, true);
-        this.register(around(app.commands, {
-            addCommand(old)    { return function(...args){ plugin.requestRefresh(); return old.apply(this, args); }; },
-            removeCommand(old) { return function(...args){ plugin.requestRefresh(); return old.apply(this, args); }; }
-        }));
+        function trigger(...args) {
+            in_event = true;
+            try { app.workspace.trigger(...args); } catch(e) { console.error(e); }
+            in_event = false;
+        }
 
-        // Wrapper to inject "extra" buttons
+        // Wrapper to add plugin-settings events
         return function display(...args) {
-            plugin.hotkeyButtons = {};  // reload settings map
+            if (in_event) return;
+            trigger("plugin-settings:before-display", this);
 
             // Track which plugin each setting is for
             const manifests = Object.values(app.plugins.manifests);
@@ -66,14 +89,10 @@ export default class HotkeyHelper extends Plugin {
                     return function(...args) {
                         // The only "extras" added to settings w/a description are on the plugins, currently,
                         // so only try to match those to plugin names
-                        if (this.descEl.childElementCount) {
+                        if (this.descEl.childElementCount && !in_event) {
                             if ( (manifests[which]||{}).name === this.nameEl.textContent ) {
-                                old.call(this, btn => {
-                                    const manifest = manifests[which++], plugin_id = manifest.id;
-                                    plugin.hotkeyButtons[plugin_id] = btn;
-                                    btn.setIcon("any-key")
-                                    btn.onClick(() => plugin.searchHotkeysBy(manifest.name+":"))
-                                })
+                                const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
+                                trigger("plugin-settings:plugin-control", this, manifest, enabled);
                             }
                         };
                         return old.apply(this, args);
@@ -82,16 +101,15 @@ export default class HotkeyHelper extends Plugin {
             });
 
             try {
-                const result = old.apply(this, args);
-                plugin.refreshHotkeys(true);
-                return result;
+                return old.apply(this, args);
             } finally {
                 remove();
+                trigger("plugin-settings:after-display", this);
             }
         }
     }
 
-    searchHotkeysBy(search) {
+    showHotkeysFor(search) {
         this.app.setting.openTabById("hotkeys");
         const tab = this.app.setting.activeTab;
         if (tab && tab.searchInputEl && tab.updateHotkeyVisibility) {
@@ -100,7 +118,7 @@ export default class HotkeyHelper extends Plugin {
         }
     }
 
-    refreshHotkeys(force=false) {
+    refreshButtons(force=false) {
         // Don't refresh when not displaying, unless rendering is in progress
         if (!pluginSettingsAreOpen(this.app) && !force) return;
 
