@@ -20,9 +20,17 @@ export default class HotkeyHelper extends Plugin {
 
         this.registerEvent( workspace.on("plugin-settings:before-display", () => {
             this.hotkeyButtons = {};
+            this.configButtons = {};
         }) );
         this.registerEvent( workspace.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
         this.registerEvent( workspace.on("plugin-settings:plugin-control", (setting, manifest, enabled) => {
+            setting.addExtraButton(btn => {
+                btn.setIcon("gear");
+                btn.onClick(() => this.showConfigFor(manifest.id))
+                btn.setTooltip("Options");
+                btn.extraSettingsEl.toggle(enabled)
+                this.configButtons[manifest.id] = btn;
+            });
             setting.addExtraButton(btn => {
                 btn.setIcon("any-key");
                 btn.onClick(() => this.showHotkeysFor(manifest.name+":"))
@@ -35,6 +43,7 @@ export default class HotkeyHelper extends Plugin {
         const requestRefresh = debounce(this.refreshButtons.bind(this), 50, true);
         function refresher(old) { return function(...args){ requestRefresh(); return old.apply(this, args); }; }
         this.register(around(app.commands, {addCommand:   refresher, removeCommand:   refresher}));
+        this.register(around(app.setting,  {addPluginTab: refresher, removePluginTab: refresher}));
 
         workspace.onLayoutReady(this.whenReady.bind(this));
     }
@@ -118,6 +127,10 @@ export default class HotkeyHelper extends Plugin {
         }
     }
 
+    showConfigFor(id) {
+        this.app.setting.openTabById(id);
+    }
+
     refreshButtons(force=false) {
         // Don't refresh when not displaying, unless rendering is in progress
         if (!pluginSettingsAreOpen(this.app) && !force) return;
@@ -133,6 +146,20 @@ export default class HotkeyHelper extends Plugin {
             (cmds[pid] || (cmds[pid]=[])).push({hotkeys, cmd});
             return cmds;
         }, {});
+
+        // Plugin setting tabs by plugin
+        const tabs = Object.values(this.app.setting.pluginTabs).reduce((tabs, tab)=> {
+            tabs[tab.id] = tab; return tabs
+        }, {});
+
+        for(const id of Object.keys(this.configButtons || {})) {
+            const btn = this.configButtons[id];
+            if (!this.app.plugins.plugins[id] || !tabs[id]) {
+                btn.extraSettingsEl.hide();
+                continue;
+            }
+            btn.extraSettingsEl.show();
+        }
 
         for(const id of Object.keys(this.hotkeyButtons || {})) {
             const btn = this.hotkeyButtons[id];
