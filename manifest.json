@@ -1,7 +1,7 @@
 {
 	"id": "hotkey-helper",
 	"name": "Hotkey Helper",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"minAppVersion": "0.11.3",
 	"description": "Easy access, overview, and conflict management for Obsidian third-party plugin hotkey assignments",
 	"author": "PJ Eby",
