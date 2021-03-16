@@ -2,7 +2,7 @@
 
 This plugin makes it easier to manage plugins' hotkeys and options in [Obsidian.md](https://obsidian.md), by displaying "options" and "hotkeys" icons in the settings next to each plugin, that you can use to jump to that plugin's options or hotkey assignments.
 
-![](hotkey-helper.gif)
+![](https://raw.githubusercontent.com/pjeby/hotkey-helper/master/hotkey-helper.gif)
 
 Better still: hovering over the hotkeys icon shows you how many commands the plugin has, how many of those commands have hotkeys assigned, and how many of the assignments are in conflict with any other hotkey assignments.  (The icon is also highlighted with your theme's error background color if there are any conflicts.)
 
