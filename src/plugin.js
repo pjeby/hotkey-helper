@@ -51,9 +51,7 @@ export default class HotkeyHelper extends Plugin {
     whenReady() {
         const
             app = this.app,
-            pluginsTab = app.setting.settingTabs.reduce(
-                (last, tab)=> ((tab.id === "third-party-plugins" && tab) || last)
-            )
+            pluginsTab = app.setting.settingTabs.filter(t => t.id === "third-party-plugins").shift()
         ;
         if (pluginsTab) {
             this.register(

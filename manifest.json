@@ -3,7 +3,7 @@
 	"name": "Hotkey Helper",
 	"version": "0.1.1",
 	"minAppVersion": "0.11.3",
-	"description": "Easily see and access any plugin's options pane or hotkey assignments (including conflicts) from the Community Plugins tab",
+	"description": "Easily see and access any plugin's settings or hotkey assignments (and conflicts) from the Community Plugins tab",
 	"author": "PJ Eby",
 	"authorUrl": "https://github.com/pjeby"
 }
