@@ -42,8 +42,9 @@ export default class HotkeyHelper extends Plugin {
         // Refresh the buttons when commands or setting tabs are added or removed
         const requestRefresh = debounce(this.refreshButtons.bind(this), 50, true);
         function refresher(old) { return function(...args){ requestRefresh(); return old.apply(this, args); }; }
-        this.register(around(app.commands, {addCommand:   refresher, removeCommand:   refresher}));
-        this.register(around(app.setting,  {addPluginTab: refresher, removePluginTab: refresher}));
+        this.register(around(app.commands, {addCommand:    refresher, removeCommand:    refresher}));
+        this.register(around(app.setting,  {addPluginTab:  refresher, removePluginTab:  refresher}));
+        this.register(around(app.setting,  {addSettingTab: refresher, removeSettingTab: refresher}));
 
         workspace.onLayoutReady(this.whenReady.bind(this));
     }
