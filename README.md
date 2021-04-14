@@ -1,6 +1,8 @@
 ## Hotkey Helper: Easier Hotkey and Options Management for Obsidian
 
-This plugin makes it easier to manage plugins' hotkeys and options in [Obsidian.md](https://obsidian.md), by adding icons next to each plugin (in the Community Plugins listing) that you can use to open that plugin's options or hotkey assignments.
+> New in 0.2.0: support for core plugins as well as community plugins!
+
+This plugin makes it easier to manage plugins' hotkeys and options in [Obsidian.md](https://obsidian.md), by adding icons next to each plugin (in the Core and Community plugin tabs) that you can use to open that plugin's options or hotkey assignments.
 
 ![](https://raw.githubusercontent.com/pjeby/hotkey-helper/master/hotkey-helper.gif)
 
@@ -18,5 +20,5 @@ If you encounter any problems with the plugin, please file bug reports to this r
 
 ### Known Issues/Current Limitations
 
-* The icons are currently only shown on the Community Plugins tab, not the Core Plugins tab.  (But conflicts between core and community plugins will still be shown on the Community plugins tab.)
-
+* Some commands are not part of any plugin (core or community) and thus have no button shown anywhere.  You can see these commands by entering `editor:` or `workspace:` into the search box on the Hotkeys tab.
+* If you search in the Hotkeys tab for a string without spaces, ending with `:`, it will only display commands provided by the named plugin; e.g. searching for `workspaces:` would list only commands from the built-in Workspaces plugin (if enabled), rather than all commands whose name *contains* the word workspaces followed by a `:`.

@@ -9,7 +9,7 @@ function pluginSettingsAreOpen(app) {
     return (
         app.setting.containerEl.parentElement !== null &&
         app.setting.activeTab &&
-        app.setting.activeTab.id === "third-party-plugins"
+        (app.setting.activeTab.id === "third-party-plugins" || app.setting.activeTab.id === "plugins")
     );
 }
 
@@ -33,7 +33,7 @@ export default class HotkeyHelper extends Plugin {
             });
             setting.addExtraButton(btn => {
                 btn.setIcon("any-key");
-                btn.onClick(() => this.showHotkeysFor(manifest.name+":"))
+                btn.onClick(() => this.showHotkeysFor(manifest.id.replace(/^file-explorer$/,"explorer")+":"))
                 btn.extraSettingsEl.toggle(enabled)
                 this.hotkeyButtons[manifest.id] = btn;
             });
@@ -50,28 +50,58 @@ export default class HotkeyHelper extends Plugin {
     }
 
     whenReady() {
-        const
-            app = this.app,
-            pluginsTab = app.setting.settingTabs.filter(t => t.id === "third-party-plugins").shift()
-        ;
-        if (pluginsTab) {
-            this.register(
-                // Hook into the display() method of the community plugins settings tab
-                around(pluginsTab, {display: this.addPluginSettingEvents.bind(this)})
-            );
+        const app = this.app;
+        const corePlugins = this.getSettingsTab("plugins"), community = this.getSettingsTab("third-party-plugins");
 
-            // Now force a refresh if the tab is currently visible (to show our new buttons)
-            function refreshTabIfOpen() {
-                if (pluginSettingsAreOpen(app)) app.setting.openTabById("third-party-plugins");
-            }
-            refreshTabIfOpen();
+        // Hook into the display() method of the plugin settings tabs
+        if (corePlugins) this.register(around(corePlugins, {display: this.addPluginSettingEvents.bind(this, "plugins")}));
+        if (community)   this.register(around(community,   {display: this.addPluginSettingEvents.bind(this, "third-party-plugins")}));
 
-            // And do it again after we unload (to remove the old buttons)
-            this.register(() => setImmediate(refreshTabIfOpen));
+        // Now force a refresh if either plugins tab is currently visible (to show our new buttons)
+        function refreshTabIfOpen() {
+            if (pluginSettingsAreOpen(app)) app.setting.openTabById(app.setting.activeTab.id);
+        }
+        refreshTabIfOpen();
+
+        // And do it again after we unload (to remove the old buttons)
+        this.register(() => setImmediate(refreshTabIfOpen));
+
+        // Tweak the hotkey settings tab to make filtering work on id prefixes as well as command names
+        const hotkeysTab = this.getSettingsTab("hotkeys");
+        if (hotkeysTab) {
+            this.register(around(hotkeysTab, {
+                updateHotkeyVisibility(old) {
+                    return function() {
+                        const oldSearch = this.searchInputEl.value, oldCommands = app.commands.commands;
+                        try {
+                            if (oldSearch.endsWith(":") && !oldSearch.contains(" ")) {
+                                // This is an incredibly ugly hack that relies on updateHotkeyVisibility() iterating app.commands.commands
+                                // looking for hotkey conflicts *before* anything else.
+                                let current = oldCommands;
+                                let filtered = Object.fromEntries(Object.entries(app.commands.commands).filter(
+                                    ([id, cmd]) => (id+":").startsWith(oldSearch)
+                                ));
+                                this.searchInputEl.value = "";
+                                app.commands.commands = new Proxy(oldCommands, {ownKeys(){
+                                    // The first time commands are iterated, return the whole thing;
+                                    // after that, return the filtered list
+                                    try { return Object.keys(current); } finally { current = filtered; }
+                                }});
+                            }
+                            return old.call(this);
+                        } finally {
+                            this.searchInputEl.value = oldSearch;
+                            app.commands.commands = oldCommands;
+                        }
+                    }
+                }
+            }));
         }
     }
 
-    addPluginSettingEvents(old) {
+    getSettingsTab(id) { return this.app.setting.settingTabs.filter(t => t.id === id).shift(); }
+
+    addPluginSettingEvents(tabId, old) {
         const app = this.app;
         let in_event = false;
 
@@ -87,17 +117,33 @@ export default class HotkeyHelper extends Plugin {
             trigger("plugin-settings:before-display", this);
 
             // Track which plugin each setting is for
-            const manifests = Object.values(app.plugins.manifests);
-            manifests.sort((e, t) => e.name.localeCompare(t.name));
+            let manifests;
+            if (tabId === "plugins") {
+                manifests = Object.entries(app.internalPlugins.plugins).map(
+                    ([id, {instance: {name, description}, _loaded:enabled}]) => {return {id, name, description, enabled};}
+                );
+            } else {
+                manifests = Object.values(app.plugins.manifests);
+                manifests.sort((e, t) => e.name.localeCompare(t.name));
+            }
             let which = 0;
 
             // Trap the addition of the "uninstall" buttons next to each plugin
             const remove = around(Setting.prototype, {
+                addToggle(old) {
+                    return function(...args) {
+                        if (tabId === "plugins" && !in_event && (manifests[which]||{}).name === this.nameEl.textContent ) {
+                            const manifest = manifests[which++];
+                            trigger("plugin-settings:plugin-control", this, manifest, manifest.enabled);
+                        }
+                        return old.apply(this, args);
+                    }
+                },
                 addExtraButton(old) {
                     return function(...args) {
                         // The only "extras" added to settings w/a description are on the plugins, currently,
                         // so only try to match those to plugin names
-                        if (this.descEl.childElementCount && !in_event) {
+                        if (tabId === "third-party-plugins" && this.descEl.childElementCount && !in_event) {
                             if ( (manifests[which]||{}).name === this.nameEl.textContent ) {
                                 const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
                                 trigger("plugin-settings:plugin-control", this, manifest, enabled);
@@ -130,6 +176,10 @@ export default class HotkeyHelper extends Plugin {
         this.app.setting.openTabById(id);
     }
 
+    pluginEnabled(id) {
+        return this.app.internalPlugins.plugins[id]?._loaded || this.app.plugins.plugins[id];
+    }
+
     refreshButtons(force=false) {
         // Don't refresh when not displaying, unless rendering is in progress
         if (!pluginSettingsAreOpen(this.app) && !force) return;
@@ -145,6 +195,7 @@ export default class HotkeyHelper extends Plugin {
             (cmds[pid] || (cmds[pid]=[])).push({hotkeys, cmd});
             return cmds;
         }, {});
+        if (commands["explorer"]) commands["file-explorer"] = commands["explorer"];
 
         // Plugin setting tabs by plugin
         const tabs = Object.values(this.app.setting.pluginTabs).reduce((tabs, tab)=> {
@@ -153,7 +204,7 @@ export default class HotkeyHelper extends Plugin {
 
         for(const id of Object.keys(this.configButtons || {})) {
             const btn = this.configButtons[id];
-            if (!this.app.plugins.plugins[id] || !tabs[id]) {
+            if (!tabs[id] || !this.pluginEnabled(id)) {
                 btn.extraSettingsEl.hide();
                 continue;
             }
@@ -162,7 +213,7 @@ export default class HotkeyHelper extends Plugin {
 
         for(const id of Object.keys(this.hotkeyButtons || {})) {
             const btn = this.hotkeyButtons[id];
-            if (!this.app.plugins.plugins[id] || !commands[id]) {
+            if (!commands[id]) {
                 // Plugin is disabled or has no commands
                 btn.extraSettingsEl.hide();
                 continue;
