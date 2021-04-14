@@ -18,15 +18,17 @@ export default class HotkeyHelper extends Plugin {
     onload() {
         const workspace = this.app.workspace;
 
-        this.registerEvent( workspace.on("plugin-settings:before-display", () => {
+        this.registerEvent( workspace.on("plugin-settings:before-display", (settingsTab, tabId) => {
             this.hotkeyButtons = {};
             this.configButtons = {};
+            this.havePseudos = false;
         }) );
         this.registerEvent( workspace.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
-        this.registerEvent( workspace.on("plugin-settings:plugin-control", (setting, manifest, enabled) => {
+
+        const createExtraButtons = (setting, manifest, enabled) => {
             setting.addExtraButton(btn => {
                 btn.setIcon("gear");
-                btn.onClick(() => this.showConfigFor(manifest.id))
+                btn.onClick(() => this.showConfigFor(manifest.id.replace(/^workspace$/,"file")));
                 btn.setTooltip("Options");
                 btn.extraSettingsEl.toggle(enabled)
                 this.configButtons[manifest.id] = btn;
@@ -37,6 +39,27 @@ export default class HotkeyHelper extends Plugin {
                 btn.extraSettingsEl.toggle(enabled)
                 this.hotkeyButtons[manifest.id] = btn;
             });
+        };
+
+        this.registerEvent( workspace.on("plugin-settings:plugin-control", (setting, manifest, enabled, tabId) => {
+            if (tabId === "plugins" && ! this.havePseudos) {
+                this.havePseudos = true;
+                const editorName    = this.getSettingsTab("editor")?.name || "Editor";
+                const workspaceName = this.getSettingsTab("file")?.name   || "Files & Links";
+                createExtraButtons(
+                    new Setting(setting.settingEl.parentElement)
+                        .setName(editorName).setDesc("Core editing commands (always enabled)"),
+                    {id: "editor", name: editorName}, true
+                );
+                createExtraButtons(
+                    new Setting(setting.settingEl.parentElement)
+                        .setName(workspaceName).setDesc("Core file and pane management commands (always enabled)"),
+                    {id: "workspace", name: workspaceName}, true
+                );
+                setting.settingEl.parentElement.append(setting.settingEl);
+            }
+
+            createExtraButtons(setting, manifest, enabled);
         }) );
 
         // Refresh the buttons when commands or setting tabs are added or removed
@@ -114,13 +137,13 @@ export default class HotkeyHelper extends Plugin {
         // Wrapper to add plugin-settings events
         return function display(...args) {
             if (in_event) return;
-            trigger("plugin-settings:before-display", this);
+            trigger("plugin-settings:before-display", this, tabId);
 
             // Track which plugin each setting is for
             let manifests;
             if (tabId === "plugins") {
                 manifests = Object.entries(app.internalPlugins.plugins).map(
-                    ([id, {instance: {name, description}, _loaded:enabled}]) => {return {id, name, description, enabled};}
+                    ([id, {instance: {name}, _loaded:enabled}]) => {return {id, name, enabled};}
                 );
             } else {
                 manifests = Object.values(app.plugins.manifests);
@@ -134,7 +157,7 @@ export default class HotkeyHelper extends Plugin {
                     return function(...args) {
                         if (tabId === "plugins" && !in_event && (manifests[which]||{}).name === this.nameEl.textContent ) {
                             const manifest = manifests[which++];
-                            trigger("plugin-settings:plugin-control", this, manifest, manifest.enabled);
+                            trigger("plugin-settings:plugin-control", this, manifest, manifest.enabled, tabId);
                         }
                         return old.apply(this, args);
                     }
@@ -146,7 +169,7 @@ export default class HotkeyHelper extends Plugin {
                         if (tabId === "third-party-plugins" && this.descEl.childElementCount && !in_event) {
                             if ( (manifests[which]||{}).name === this.nameEl.textContent ) {
                                 const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
-                                trigger("plugin-settings:plugin-control", this, manifest, enabled);
+                                trigger("plugin-settings:plugin-control", this, manifest, enabled, tabId);
                             }
                         };
                         return old.apply(this, args);
@@ -201,10 +224,11 @@ export default class HotkeyHelper extends Plugin {
         const tabs = Object.values(this.app.setting.pluginTabs).reduce((tabs, tab)=> {
             tabs[tab.id] = tab; return tabs
         }, {});
+        tabs["workspace"] = tabs["editor"] = true;
 
         for(const id of Object.keys(this.configButtons || {})) {
             const btn = this.configButtons[id];
-            if (!tabs[id] || !this.pluginEnabled(id)) {
+            if (!tabs[id]) {
                 btn.extraSettingsEl.hide();
                 continue;
             }
