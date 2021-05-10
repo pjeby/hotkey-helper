@@ -42,10 +42,33 @@ export default class HotkeyHelper extends Plugin {
         };
 
         this.registerEvent( workspace.on("plugin-settings:plugin-control", (setting, manifest, enabled, tabId) => {
+            if (!this.havePseudos) {
+                // Add a search filter to shrink plugin list
+                const containerEl = setting.settingEl.parentElement;
+                const inputEl = containerEl.createDiv("hotkey-search-container").createEl(
+                    "input", {type: "text", attr: {placeholder:"Filter plugins...", spellcheck: "false"}}
+                );
+                inputEl.addEventListener("input", function(){
+                    const find = inputEl.value.toLowerCase();
+                    containerEl.findAll(".hotkey-search-container ~ .setting-item").forEach(e => {
+                        e.toggle(
+                            e.find(".setting-item-name").textContent.toLowerCase().contains(find) ||
+                            e.find(".setting-item-description").textContent.toLowerCase().contains(find)
+                        );
+                    });
+                });
+                setImmediate(() => {inputEl.focus()});
+                setting.settingEl.parentElement.append(setting.settingEl);
+            }
+
             if (tabId === "plugins" && ! this.havePseudos) {
-                this.havePseudos = true;
                 const editorName    = this.getSettingsTab("editor")?.name || "Editor";
                 const workspaceName = this.getSettingsTab("file")?.name   || "Files & Links";
+                createExtraButtons(
+                    new Setting(setting.settingEl.parentElement)
+                        .setName("App").setDesc("Miscellaneous application commands (always enabled)"),
+                    {id: "app", name: "App"}, true
+                );
                 createExtraButtons(
                     new Setting(setting.settingEl.parentElement)
                         .setName(editorName).setDesc("Core editing commands (always enabled)"),
@@ -59,6 +82,7 @@ export default class HotkeyHelper extends Plugin {
                 setting.settingEl.parentElement.append(setting.settingEl);
             }
 
+            this.havePseudos = true;
             createExtraButtons(setting, manifest, enabled);
         }) );
 
@@ -93,6 +117,7 @@ export default class HotkeyHelper extends Plugin {
         const hotkeysTab = this.getSettingsTab("hotkeys");
         if (hotkeysTab) {
             this.register(around(hotkeysTab, {
+                display(old) { return function() { old.call(this); this.searchInputEl.focus(); }; },
                 updateHotkeyVisibility(old) {
                     return function() {
                         const oldSearch = this.searchInputEl.value, oldCommands = app.commands.commands;
