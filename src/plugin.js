@@ -35,7 +35,7 @@ export default class HotkeyHelper extends Plugin {
             });
             setting.addExtraButton(btn => {
                 btn.setIcon("any-key");
-                btn.onClick(() => this.showHotkeysFor(manifest.id.replace(/^file-explorer$/,"explorer")+":"))
+                btn.onClick(() => this.showHotkeysFor(manifest.id+":"))
                 btn.extraSettingsEl.toggle(enabled)
                 this.hotkeyButtons[manifest.id] = btn;
             });
@@ -45,20 +45,40 @@ export default class HotkeyHelper extends Plugin {
             if (!this.havePseudos) {
                 // Add a search filter to shrink plugin list
                 const containerEl = setting.settingEl.parentElement;
-                const inputEl = containerEl.createDiv("hotkey-search-container").createEl(
+                let inputEl;
+                if (tabId === "third-party-plugins") {
+                    // Replace the built-in search handler
+                    const original = inputEl = containerEl.parentElement?.find(".search-input-container input")
+                    if (original) {
+                        inputEl = original.cloneNode();
+                        original.parentElement.replaceChild(inputEl, original);
+                    }
+                }
+                inputEl = inputEl ?? containerEl.createDiv("hotkey-search-container").createEl(
                     "input", {type: "text", attr: {placeholder:"Filter plugins...", spellcheck: "false"}}
                 );
                 inputEl.addEventListener("input", function(){
                     const find = inputEl.value.toLowerCase();
-                    containerEl.findAll(".hotkey-search-container ~ .setting-item").forEach(e => {
-                        e.toggle(
-                            e.find(".setting-item-name").textContent.toLowerCase().contains(find) ||
-                            e.find(".setting-item-description").textContent.toLowerCase().contains(find)
+                    function matchAndHighlight(el) {
+                        const text = el.textContent = el.textContent; // clear previous highlighting, if any
+                        const index = text.toLowerCase().indexOf(find);
+                        if (!~index) return false;
+                        el.textContent = text.substr(0, index);
+                        el.createSpan("suggestion-highlight").textContent = text.substr(index, find.length);
+                        el.insertAdjacentText("beforeend", text.substr(index+find.length))
+                        return true;
+                    }
+                    containerEl.findAll(".setting-item").forEach(e => {
+                        const nameMatches = matchAndHighlight(e.find(".setting-item-name"));
+                        const descMatches = matchAndHighlight(
+                            e.find(".setting-item-description > div:last-child") ??
+                            e.find(".setting-item-description")
                         );
+                        e.toggle(nameMatches || descMatches);
                     });
                 });
                 setImmediate(() => {inputEl.focus()});
-                setting.settingEl.parentElement.append(setting.settingEl);
+                containerEl.append(setting.settingEl);
             }
 
             if (tabId === "plugins" && ! this.havePseudos) {
@@ -243,7 +263,6 @@ export default class HotkeyHelper extends Plugin {
             (cmds[pid] || (cmds[pid]=[])).push({hotkeys, cmd});
             return cmds;
         }, {});
-        if (commands["explorer"]) commands["file-explorer"] = commands["explorer"];
 
         // Plugin setting tabs by plugin
         const tabs = Object.values(this.app.setting.pluginTabs).reduce((tabs, tab)=> {
