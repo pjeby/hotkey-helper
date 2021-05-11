@@ -5,11 +5,15 @@ function hotkeyToString(hotkey) {
     return Keymap.compileModifiers(hotkey.modifiers)+"," + hotkey.key.toLowerCase()
 }
 
+function isPluginTab(id) {
+    return id === "plugins" || id === "third-party-plugins" || id === "community-plugins";
+}
+
 function pluginSettingsAreOpen(app) {
     return (
         app.setting.containerEl.parentElement !== null &&
         app.setting.activeTab &&
-        (app.setting.activeTab.id === "third-party-plugins" || app.setting.activeTab.id === "plugins")
+        isPluginTab(app.setting.activeTab.id)
     );
 }
 
@@ -46,7 +50,7 @@ export default class HotkeyHelper extends Plugin {
                 // Add a search filter to shrink plugin list
                 const containerEl = setting.settingEl.parentElement;
                 let inputEl;
-                if (tabId === "third-party-plugins") {
+                if (tabId !== "plugins") {
                     // Replace the built-in search handler
                     const original = inputEl = containerEl.parentElement?.find(".search-input-container input")
                     if (original) {
@@ -118,11 +122,12 @@ export default class HotkeyHelper extends Plugin {
 
     whenReady() {
         const app = this.app;
-        const corePlugins = this.getSettingsTab("plugins"), community = this.getSettingsTab("third-party-plugins");
+        const corePlugins = this.getSettingsTab("plugins");
+        const community = this.getSettingsTab("third-party-plugins") ?? this.getSettingsTab("community-plugins");
 
         // Hook into the display() method of the plugin settings tabs
-        if (corePlugins) this.register(around(corePlugins, {display: this.addPluginSettingEvents.bind(this, "plugins")}));
-        if (community)   this.register(around(community,   {display: this.addPluginSettingEvents.bind(this, "third-party-plugins")}));
+        if (corePlugins) this.register(around(corePlugins, {display: this.addPluginSettingEvents.bind(this, corePlugins.id)}));
+        if (community)   this.register(around(community,   {display: this.addPluginSettingEvents.bind(this, community.id)}));
 
         // Now force a refresh if either plugins tab is currently visible (to show our new buttons)
         function refreshTabIfOpen() {
@@ -211,7 +216,7 @@ export default class HotkeyHelper extends Plugin {
                     return function(...args) {
                         // The only "extras" added to settings w/a description are on the plugins, currently,
                         // so only try to match those to plugin names
-                        if (tabId === "third-party-plugins" && this.descEl.childElementCount && !in_event) {
+                        if (tabId !== "plugins" && this.descEl.childElementCount && !in_event) {
                             if ( (manifests[which]||{}).name === this.nameEl.textContent ) {
                                 const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
                                 trigger("plugin-settings:plugin-control", this, manifest, enabled, tabId);
