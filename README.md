@@ -26,7 +26,7 @@ If you encounter any problems with the plugin, please file bug reports to this r
 
 ### Plugin URLs
 
-When this plugin is enabled, you can open plugin information using URLs of the form `obsidian://goto-plugin?id=plugin-id`.  This will open the Community Plugins browser of the current vault, displaying information for that plugin.  So for example, [this link](obsidian://goto-plugin?id=hotkey-helper) will open this page in Obsidian's plugin browser (if your current vault has Hotkey Helper enabled).
+When this plugin is enabled, you can open plugin information using URLs of the form `obsidian://goto-plugin?id=plugin-id`.  This will open the Community Plugins browser of the current vault, displaying information for that plugin.  So for example, the URL <obsidian://goto-plugin?id=hotkey-helper> will open this page in Obsidian's plugin browser (if your current vault has Hotkey Helper enabled).
 
 This means that if you are a plugin author and want to make it easy for people to find and install your plugin (i.e., without needing to type in its name), you can just include a URL wherever you're promoting your plugin (or others are sharing it.
 
