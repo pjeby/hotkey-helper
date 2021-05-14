@@ -39,7 +39,8 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [
             ["monkey-around", "npm:2.1.0"],
             ["obsidian-rollup-presets", "virtual:a4b4f39c0b4ac097b109a3bc43258558fdaca29b426994758258dc02928efcdf621ba460010e3fd81569d7dd9bdd916026890d099e6ba2888ac66d4fd2a1f713#https://github.com/pjeby/obsidian-rollup-presets.git#commit=154ebe408bb0d64c48e464591bc5db989a4ad6ef"],
-            ["rollup", "npm:2.38.1"]
+            ["rollup", "npm:2.38.1"],
+            ["typescript", "patch:typescript@npm%3A4.1.3#builtin<compat/typescript>::version=4.1.3&hash=cc6730"]
           ],
           "linkType": "SOFT",
         }]
@@ -1464,7 +1465,8 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["hotkey-helper", "workspace:."],
             ["monkey-around", "npm:2.1.0"],
             ["obsidian-rollup-presets", "virtual:a4b4f39c0b4ac097b109a3bc43258558fdaca29b426994758258dc02928efcdf621ba460010e3fd81569d7dd9bdd916026890d099e6ba2888ac66d4fd2a1f713#https://github.com/pjeby/obsidian-rollup-presets.git#commit=154ebe408bb0d64c48e464591bc5db989a4ad6ef"],
-            ["rollup", "npm:2.38.1"]
+            ["rollup", "npm:2.38.1"],
+            ["typescript", "patch:typescript@npm%3A4.1.3#builtin<compat/typescript>::version=4.1.3&hash=cc6730"]
           ],
           "linkType": "SOFT",
         }]
@@ -3406,6 +3408,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/cache/tweetnacl-npm-0.14.5-a3f766c0d1-e1c9d52e2e.zip/node_modules/tweetnacl/",
           "packageDependencies": [
             ["tweetnacl", "npm:0.14.5"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["typescript", [
+        ["patch:typescript@npm%3A4.1.3#builtin<compat/typescript>::version=4.1.3&hash=cc6730", {
+          "packageLocation": "./.yarn/cache/typescript-patch-7a9e6321b3-017af99214.zip/node_modules/typescript/",
+          "packageDependencies": [
+            ["typescript", "patch:typescript@npm%3A4.1.3#builtin<compat/typescript>::version=4.1.3&hash=cc6730"]
           ],
           "linkType": "HARD",
         }]

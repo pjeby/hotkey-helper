@@ -8,6 +8,7 @@
   "devDependencies": {
     "monkey-around": "^2.1",
     "obsidian-rollup-presets": "github:pjeby/obsidian-rollup-presets",
-    "rollup": "^2.38.1"
+    "rollup": "^2.38.1",
+    "typescript": "4.1.3"
   }
 }
