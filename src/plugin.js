@@ -1,4 +1,4 @@
-import {Plugin, Keymap, Setting, debounce} from "obsidian";
+import {Plugin, Keymap, Setting, Modal, debounce} from "obsidian";
 import {around} from "monkey-around";
 
 function hotkeyToString(hotkey) {
@@ -10,11 +10,26 @@ function isPluginTab(id) {
 }
 
 function pluginSettingsAreOpen(app) {
+    return settingsAreOpen(app) && isPluginTab(app.setting.activeTab?.id)
+}
+
+function settingsAreOpen(app) {
+    return app.setting.containerEl.parentElement !== null
+}
+
+function isPluginViewer(ob) {
     return (
-        app.setting.containerEl.parentElement !== null &&
-        app.setting.activeTab &&
-        isPluginTab(app.setting.activeTab.id)
+        ob instanceof Modal &&
+        ob.hasOwnProperty("autoload") &&
+        typeof ob.showPlugin === "function" &&
+        typeof ob.updateSearch === "function" &&
+        typeof ob.searchEl == "object"
     );
+}
+
+function onElement(el, event, selector, callback, options=false) {
+    el.on(event, selector, callback, options)
+    return () => el.off(event, selector, callback, options);
 }
 
 export default class HotkeyHelper extends Plugin {
@@ -25,89 +40,13 @@ export default class HotkeyHelper extends Plugin {
         this.registerEvent( workspace.on("plugin-settings:before-display", (settingsTab, tabId) => {
             this.hotkeyButtons = {};
             this.configButtons = {};
-            this.havePseudos = false;
+            this.globalsAdded = false;
         }) );
         this.registerEvent( workspace.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
 
-        const createExtraButtons = (setting, manifest, enabled) => {
-            setting.addExtraButton(btn => {
-                btn.setIcon("gear");
-                btn.onClick(() => this.showConfigFor(manifest.id.replace(/^workspace$/,"file")));
-                btn.setTooltip("Options");
-                btn.extraSettingsEl.toggle(enabled)
-                this.configButtons[manifest.id] = btn;
-            });
-            setting.addExtraButton(btn => {
-                btn.setIcon("any-key");
-                btn.onClick(() => this.showHotkeysFor(manifest.id+":"))
-                btn.extraSettingsEl.toggle(enabled)
-                this.hotkeyButtons[manifest.id] = btn;
-            });
-        };
-
         this.registerEvent( workspace.on("plugin-settings:plugin-control", (setting, manifest, enabled, tabId) => {
-            if (!this.havePseudos) {
-                // Add a search filter to shrink plugin list
-                const containerEl = setting.settingEl.parentElement;
-                let inputEl;
-                if (tabId !== "plugins") {
-                    // Replace the built-in search handler
-                    const original = inputEl = containerEl.parentElement?.find(".search-input-container input")
-                    if (original) {
-                        inputEl = original.cloneNode();
-                        original.parentElement.replaceChild(inputEl, original);
-                    }
-                }
-                inputEl = inputEl ?? containerEl.createDiv("hotkey-search-container").createEl(
-                    "input", {type: "text", attr: {placeholder:"Filter plugins...", spellcheck: "false"}}
-                );
-                inputEl.addEventListener("input", function(){
-                    const find = inputEl.value.toLowerCase();
-                    function matchAndHighlight(el) {
-                        const text = el.textContent = el.textContent; // clear previous highlighting, if any
-                        const index = text.toLowerCase().indexOf(find);
-                        if (!~index) return false;
-                        el.textContent = text.substr(0, index);
-                        el.createSpan("suggestion-highlight").textContent = text.substr(index, find.length);
-                        el.insertAdjacentText("beforeend", text.substr(index+find.length))
-                        return true;
-                    }
-                    containerEl.findAll(".setting-item").forEach(e => {
-                        const nameMatches = matchAndHighlight(e.find(".setting-item-name"));
-                        const descMatches = matchAndHighlight(
-                            e.find(".setting-item-description > div:last-child") ??
-                            e.find(".setting-item-description")
-                        );
-                        e.toggle(nameMatches || descMatches);
-                    });
-                });
-                setImmediate(() => {inputEl.focus()});
-                containerEl.append(setting.settingEl);
-            }
-
-            if (tabId === "plugins" && ! this.havePseudos) {
-                const editorName    = this.getSettingsTab("editor")?.name || "Editor";
-                const workspaceName = this.getSettingsTab("file")?.name   || "Files & Links";
-                createExtraButtons(
-                    new Setting(setting.settingEl.parentElement)
-                        .setName("App").setDesc("Miscellaneous application commands (always enabled)"),
-                    {id: "app", name: "App"}, true
-                );
-                createExtraButtons(
-                    new Setting(setting.settingEl.parentElement)
-                        .setName(editorName).setDesc("Core editing commands (always enabled)"),
-                    {id: "editor", name: editorName}, true
-                );
-                createExtraButtons(
-                    new Setting(setting.settingEl.parentElement)
-                        .setName(workspaceName).setDesc("Core file and pane management commands (always enabled)"),
-                    {id: "workspace", name: workspaceName}, true
-                );
-                setting.settingEl.parentElement.append(setting.settingEl);
-            }
-
-            this.havePseudos = true;
-            createExtraButtons(setting, manifest, enabled);
+            this.globalsAdded || this.addGlobals(tabId, setting.settingEl);
+            this.createExtraButtons(setting, manifest, enabled);
         }) );
 
         // Refresh the buttons when commands or setting tabs are added or removed
@@ -170,6 +109,86 @@ export default class HotkeyHelper extends Plugin {
                 }
             }));
         }
+    }
+
+    createExtraButtons(setting, manifest, enabled) {
+        setting.addExtraButton(btn => {
+            btn.setIcon("gear");
+            btn.onClick(() => this.showConfigFor(manifest.id.replace(/^workspace$/,"file")));
+            btn.setTooltip("Options");
+            btn.extraSettingsEl.toggle(enabled)
+            this.configButtons[manifest.id] = btn;
+        });
+        setting.addExtraButton(btn => {
+            btn.setIcon("any-key");
+            btn.onClick(() => this.showHotkeysFor(manifest.id+":"))
+            btn.extraSettingsEl.toggle(enabled)
+            this.hotkeyButtons[manifest.id] = btn;
+        });
+    }
+
+    // Add top-level items (search and pseudo-plugins)
+    addGlobals(tabId, settingEl) {
+        this.globalsAdded = true;
+
+        // Add a search filter to shrink plugin list
+        const containerEl = settingEl.parentElement;
+        let inputEl;
+        if (tabId !== "plugins") {
+            // Replace the built-in search handler
+            const original = inputEl = containerEl.parentElement?.find(".search-input-container input")
+            if (original) {
+                inputEl = original.cloneNode();
+                original.parentElement.replaceChild(inputEl, original);
+            }
+        }
+        inputEl = inputEl ?? containerEl.createDiv("hotkey-search-container").createEl(
+            "input", {type: "text", attr: {placeholder:"Filter plugins...", spellcheck: "false"}}
+        );
+        inputEl.addEventListener("input", function(){
+            const find = inputEl.value.toLowerCase();
+            function matchAndHighlight(el) {
+                const text = el.textContent = el.textContent; // clear previous highlighting, if any
+                const index = text.toLowerCase().indexOf(find);
+                if (!~index) return false;
+                el.textContent = text.substr(0, index);
+                el.createSpan("suggestion-highlight").textContent = text.substr(index, find.length);
+                el.insertAdjacentText("beforeend", text.substr(index+find.length))
+                return true;
+            }
+            containerEl.findAll(".setting-item").forEach(e => {
+                const nameMatches = matchAndHighlight(e.find(".setting-item-name"));
+                const descMatches = matchAndHighlight(
+                    e.find(".setting-item-description > div:last-child") ??
+                    e.find(".setting-item-description")
+                );
+                e.toggle(nameMatches || descMatches);
+            });
+        });
+        setImmediate(() => {inputEl.focus()});
+        containerEl.append(settingEl);
+
+        if (tabId === "plugins") {
+            const editorName    = this.getSettingsTab("editor")?.name || "Editor";
+            const workspaceName = this.getSettingsTab("file")?.name   || "Files & Links";
+            this.createExtraButtons(
+                new Setting(settingEl.parentElement)
+                    .setName("App").setDesc("Miscellaneous application commands (always enabled)"),
+                {id: "app", name: "App"}, true
+            );
+            this.createExtraButtons(
+                new Setting(settingEl.parentElement)
+                    .setName(editorName).setDesc("Core editing commands (always enabled)"),
+                {id: "editor", name: editorName}, true
+            );
+            this.createExtraButtons(
+                new Setting(settingEl.parentElement)
+                    .setName(workspaceName).setDesc("Core file and pane management commands (always enabled)"),
+                {id: "workspace", name: workspaceName}, true
+            );
+            settingEl.parentElement.append(settingEl);
+        }
+
     }
 
     getSettingsTab(id) { return this.app.setting.settingTabs.filter(t => t.id === id).shift(); }
@@ -247,6 +266,11 @@ export default class HotkeyHelper extends Plugin {
 
     showConfigFor(id) {
         this.app.setting.openTabById(id);
+        if (this.app.setting.activeTab?.id === id) return true;
+        new Notice(
+            `No settings tab for "${id}": it may not be installed or might not have settings.`
+        );
+        return false;
     }
 
     pluginEnabled(id) {
