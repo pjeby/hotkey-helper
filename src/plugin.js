@@ -6,7 +6,7 @@ function hotkeyToString(hotkey) {
 }
 
 function isPluginTab(id) {
-    return id === "plugins" || id === "third-party-plugins" || id === "community-plugins";
+    return id === "plugins" || id === "community-plugins";
 }
 
 function pluginSettingsAreOpen(app) {
@@ -57,16 +57,29 @@ export default class HotkeyHelper extends Plugin {
         this.register(around(app.setting,  {addSettingTab: refresher, removeSettingTab: refresher}));
 
         workspace.onLayoutReady(this.whenReady.bind(this));
+        this.registerObsidianProtocolHandler("goto-plugin", ({id, show}) => {
+            workspace.onLayoutReady(() => { this.gotoPlugin(id, show); });
+        });
     }
 
     whenReady() {
         const app = this.app;
         const corePlugins = this.getSettingsTab("plugins");
-        const community = this.getSettingsTab("third-party-plugins") ?? this.getSettingsTab("community-plugins");
+        const community   = this.getSettingsTab("community-plugins");
 
         // Hook into the display() method of the plugin settings tabs
         if (corePlugins) this.register(around(corePlugins, {display: this.addPluginSettingEvents.bind(this, corePlugins.id)}));
         if (community)   this.register(around(community,   {display: this.addPluginSettingEvents.bind(this, community.id)}));
+
+        if (community)   this.register(
+            // Trap opens of the community plugins viewer
+            onElement(
+                community.containerEl, "click",
+                ".mod-cta, .installed-plugins-container .setting-item-info",
+                () => this.enhanceViewer(),
+                true
+            )
+        );
 
         // Now force a refresh if either plugins tab is currently visible (to show our new buttons)
         function refreshTabIfOpen() {
@@ -188,7 +201,44 @@ export default class HotkeyHelper extends Plugin {
             );
             settingEl.parentElement.append(settingEl);
         }
+    }
 
+    enhanceViewer() {
+        const plugin = this;
+        setImmediate(around(Modal.prototype, {
+            open(old) {
+                return function(...args) {
+                    if (isPluginViewer(this)) {
+                        setImmediate(() => {this.searchEl.focus()});
+                        around(this, {
+                            showPlugin(old) { return async function(manifest){
+                                const res = await old.call(this, manifest);
+                                if (plugin.app.plugins.plugins[manifest.id]) {
+                                    const buttons = this.pluginContentEl.find("button").parentElement;
+                                    const keyBtn = buttons.createEl("button", {prepend: true, text: "Hotkeys"});
+                                    const cfgBtn = buttons.createEl("button", {prepend: true, text: "Options"});
+                                    plugin.hotkeyButtons[manifest.id] = {
+                                        setTooltip(tip) {keyBtn.title = tip}, extraSettingsEl: keyBtn
+                                    }
+                                    plugin.configButtons[manifest.id] = {
+                                        setTooltip() {}, extraSettingsEl: cfgBtn
+                                    }
+                                    plugin.refreshButtons(true);
+                                    keyBtn.addEventListener("click",  () => {
+                                        this.close(); plugin.showHotkeysFor(manifest.id+":");
+                                    });
+                                    cfgBtn.addEventListener("click",  () => {
+                                        this.close(); plugin.showConfigFor(manifest.id);
+                                    });
+                                }
+                                return res;
+                            }}
+                        })
+                    }
+                    return old.apply(this, args);
+                }
+            }
+        }));
     }
 
     getSettingsTab(id) { return this.app.setting.settingTabs.filter(t => t.id === id).shift(); }
@@ -253,6 +303,28 @@ export default class HotkeyHelper extends Plugin {
                 trigger("plugin-settings:after-display", this);
             }
         }
+    }
+
+    gotoPlugin(id, show="info") {
+        settingsAreOpen(this.app) || this.app.setting.open();
+        if (id && show === "hotkeys") return this.showHotkeysFor(id+":");
+        if (id && show === "config")  {
+            if (!this.showConfigFor(id)) this.app.setting.close();
+            return;
+        }
+
+        this.app.setting.openTabById("community-plugins");
+        const remove = around(Modal.prototype, {
+            open(old) {
+                return function(...args) {
+                    remove();
+                    this.autoload = id;
+                    return old.apply(this, args);
+                }
+            }
+        })
+        this.app.setting.activeTab.containerEl.find(".mod-cta").click();
+        // XXX handle nav to not-installed plugin
     }
 
     showHotkeysFor(search) {
