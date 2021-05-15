@@ -35,12 +35,22 @@ function onElement(el, event, selector, callback, options=false) {
 export default class HotkeyHelper extends Plugin {
 
     onload() {
-        const workspace = this.app.workspace;
+        const workspace = this.app.workspace, plugin = this;
 
         this.registerEvent( workspace.on("plugin-settings:before-display", (settingsTab, tabId) => {
             this.hotkeyButtons = {};
             this.configButtons = {};
             this.globalsAdded = false;
+            this.searchInput = null;
+            const remove = around(Setting.prototype, {
+                addSearch(old) { return function(f) {
+                    remove();
+                    return old.call(this, i => {
+                        plugin.searchInput = i; f?.(i);
+                    })
+                }}
+            });
+            setImmediate(remove);
         }) );
         this.registerEvent( workspace.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
 
@@ -162,16 +172,20 @@ export default class HotkeyHelper extends Plugin {
         let inputEl;
         if (tabId !== "plugins") {
             // Replace the built-in search handler
-            const original = inputEl = containerEl.parentElement?.find(".search-input-container input")
-            if (original) {
-                inputEl = original.cloneNode();
-                original.parentElement.replaceChild(inputEl, original);
-            }
+            this.searchInput?.onChange(changeHandler);
+            inputEl = this.searchInput?.inputEl;
+        } else {
+            let search;
+            const tmp = new Setting(containerEl).addSearch(s => {
+                search = s;
+                s.setPlaceholder("Filter plugins...").onChange(changeHandler);
+            });
+            inputEl = search.inputEl;
+            search.containerEl.style.margin = 0;
+            containerEl.createDiv("hotkey-search-container").append(search.containerEl);
+            tmp.settingEl.detach();
         }
-        inputEl = inputEl ?? containerEl.createDiv("hotkey-search-container").createEl(
-            "input", {type: "text", attr: {placeholder:"Filter plugins...", spellcheck: "false"}}
-        );
-        inputEl.addEventListener("input", function(){
+        function changeHandler(){
             const find = inputEl.value.toLowerCase();
             function matchAndHighlight(el) {
                 const text = el.textContent = el.textContent; // clear previous highlighting, if any
@@ -190,8 +204,8 @@ export default class HotkeyHelper extends Plugin {
                 );
                 e.toggle(nameMatches || descMatches);
             });
-        });
-        setImmediate(() => {inputEl.focus()});
+        }
+        setImmediate(() => {inputEl?.focus()});
         containerEl.append(settingEl);
 
         if (tabId === "plugins") {
