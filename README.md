@@ -28,7 +28,7 @@ If you encounter any problems with the plugin, please file bug reports to this r
 
 When this plugin is enabled, you can open plugin information using URLs of the form `obsidian://goto-plugin?id=plugin-id`.  This will open the Community Plugins browser of the current vault, displaying information for that plugin.  So for example, the URL <obsidian://goto-plugin?id=hotkey-helper> will open this page in Obsidian's plugin browser (if your current vault has Hotkey Helper enabled).
 
-This means that if you are a plugin author and want to make it easy for people to find and install your plugin (i.e., without needing to type in its name), you can just include a URL wherever you're promoting your plugin (or others are sharing it.
+This means that if you are a plugin author and want to make it easy for people to find and install your plugin (i.e., without needing to type in its name), you can just include a URL wherever you're promoting your plugin (or others are sharing it.  (Note: Github strips `obsidian://` URLs from markdown, so if you want to include a link in your project's README, you can link to e.g. https://obsidian-plugins.peak-dev.org/goto/hotkey-helper/ to get a redirect to the actual Obsidian URL.  Hopefully this can be replaced with a redirector at an official domain in the future.)
 
 In addition to the `id=` argument, you can also add `&show=config` or `&show=hotkeys` to the URL to make it go directly to the settings or hotkey configuration for that plugin (if it's installed, enabled, and has a settings tab or commands).  This can make it easier to support your users, by being able to give a link rather than lengthy instructions to locate the specific items/areas needed.
 
