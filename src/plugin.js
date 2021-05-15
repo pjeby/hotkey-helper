@@ -1,4 +1,4 @@
-import {Plugin, Keymap, Setting, Modal, debounce} from "obsidian";
+import {Plugin, Platform, Keymap, Setting, Modal, debounce} from "obsidian";
 import {around} from "monkey-around";
 
 function hotkeyToString(hotkey) {
@@ -63,7 +63,20 @@ export default class HotkeyHelper extends Plugin {
     }
 
     whenReady() {
-        const app = this.app;
+        const app = this.app, plugin = this;
+
+        // Save and restore current tab (workaround https://forum.obsidian.md/t/settings-dialog-resets-to-first-tab-every-time/18240)
+        this.register(around(app.setting, {
+            onOpen(old) { return function(...args) {
+                old.apply(this, args);
+                if (!Platform.isMobile && plugin.lastTabId) this.openTabById(plugin.lastTabId);
+            }},
+            onClose(old) { return function(...args) {
+                plugin.lastTabId = this.activeTab?.id;
+                return old.apply(this, args);
+            }}
+        }))
+
         const corePlugins = this.getSettingsTab("plugins");
         const community   = this.getSettingsTab("community-plugins");
 
@@ -210,7 +223,12 @@ export default class HotkeyHelper extends Plugin {
                 return function(...args) {
                     if (isPluginViewer(this)) {
                         setImmediate(() => {this.searchEl.focus()});
+                        plugin.currentViewer = this;
                         around(this, {
+                            close(old) { return function(...args) {
+                                plugin.currentViewer = null;
+                                return old.apply(this, args);
+                            }},
                             showPlugin(old) { return async function(manifest){
                                 const res = await old.call(this, manifest);
                                 if (plugin.app.plugins.plugins[manifest.id]) {
@@ -306,14 +324,13 @@ export default class HotkeyHelper extends Plugin {
     }
 
     gotoPlugin(id, show="info") {
-        settingsAreOpen(this.app) || this.app.setting.open();
         if (id && show === "hotkeys") return this.showHotkeysFor(id+":");
         if (id && show === "config")  {
             if (!this.showConfigFor(id)) this.app.setting.close();
             return;
         }
 
-        this.app.setting.openTabById("community-plugins");
+        this.showSettings("community-plugins");
         const remove = around(Modal.prototype, {
             open(old) {
                 return function(...args) {
@@ -327,9 +344,17 @@ export default class HotkeyHelper extends Plugin {
         // XXX handle nav to not-installed plugin
     }
 
+    showSettings(id) {
+        this.currentViewer?.close();  // close the plugin browser if open
+        settingsAreOpen(this.app) || this.app.setting.open();
+        if (id) {
+            this.app.setting.openTabById(id);
+            return this.app.setting.activeTab?.id === id ? this.app.setting.activeTab : false
+        }
+    }
+
     showHotkeysFor(search) {
-        this.app.setting.openTabById("hotkeys");
-        const tab = this.app.setting.activeTab;
+        const tab = this.showSettings("hotkeys");
         if (tab && tab.searchInputEl && tab.updateHotkeyVisibility) {
             tab.searchInputEl.value = search;
             tab.updateHotkeyVisibility();
@@ -337,8 +362,7 @@ export default class HotkeyHelper extends Plugin {
     }
 
     showConfigFor(id) {
-        this.app.setting.openTabById(id);
-        if (this.app.setting.activeTab?.id === id) return true;
+        if (this.showSettings(id)) return true;
         new Notice(
             `No settings tab for "${id}": it may not be installed or might not have settings.`
         );
