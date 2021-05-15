@@ -1,8 +1,10 @@
 ## Hotkey Helper: Easier Hotkey and Options Management for Obsidian
 
-> New in 0.3.2: Link to plugins with [Plugin URLs](#plugin-urls), and configuration buttons in the plugin browser
+> New in...
 >
-> New in 0.2.1: support for core plugins and non-plugin hotkeys as well as community plugins
+> * 0.3.5: Plugin searches are saved and carry through when browsing the plugin catalog
+> * 0.3.2: Link to plugins with [Plugin URLs](#plugin-urls), and configuration buttons in the plugin browser
+> * 0.2.1: support for core plugins and non-plugin hotkeys as well as community plugins
 
 This plugin makes it easier to manage plugins' hotkeys and options in [Obsidian.md](https://obsidian.md), by adding icons next to each plugin (in the Core and Community plugin tabs) that you can use to open that plugin's options or hotkey assignments.
 

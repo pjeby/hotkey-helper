@@ -1,5 +1,5 @@
 import {Plugin, Platform, Keymap, Setting, Modal, debounce} from "obsidian";
-import {around} from "monkey-around";
+import {around, serialize} from "monkey-around";
 
 function hotkeyToString(hotkey) {
     return Keymap.compileModifiers(hotkey.modifiers)+"," + hotkey.key.toLowerCase()
@@ -36,6 +36,7 @@ export default class HotkeyHelper extends Plugin {
 
     onload() {
         const workspace = this.app.workspace, plugin = this;
+        this.lastSearch = {};   // last search used, indexed by tab
 
         this.registerEvent( workspace.on("plugin-settings:before-display", (settingsTab, tabId) => {
             this.hotkeyButtons = {};
@@ -169,24 +170,22 @@ export default class HotkeyHelper extends Plugin {
 
         // Add a search filter to shrink plugin list
         const containerEl = settingEl.parentElement;
-        let inputEl;
+        let searchEl;
         if (tabId !== "plugins") {
             // Replace the built-in search handler
-            this.searchInput?.onChange(changeHandler);
-            inputEl = this.searchInput?.inputEl;
+            (searchEl = this.searchInput)?.onChange(changeHandler);
         } else {
-            let search;
             const tmp = new Setting(containerEl).addSearch(s => {
-                search = s;
+                searchEl = s;
                 s.setPlaceholder("Filter plugins...").onChange(changeHandler);
             });
-            inputEl = search.inputEl;
-            search.containerEl.style.margin = 0;
-            containerEl.createDiv("hotkey-search-container").append(search.containerEl);
+            searchEl.containerEl.style.margin = 0;
+            containerEl.createDiv("hotkey-search-container").append(searchEl.containerEl);
             tmp.settingEl.detach();
         }
-        function changeHandler(){
-            const find = inputEl.value.toLowerCase();
+        const plugin = this;
+        function changeHandler(seek){
+            const find = (plugin.lastSearch[tabId] = seek).toLowerCase();
             function matchAndHighlight(el) {
                 const text = el.textContent = el.textContent; // clear previous highlighting, if any
                 const index = text.toLowerCase().indexOf(find);
@@ -205,7 +204,14 @@ export default class HotkeyHelper extends Plugin {
                 e.toggle(nameMatches || descMatches);
             });
         }
-        setImmediate(() => {inputEl?.focus()});
+        setImmediate(() => {
+            if (!searchEl) return
+            if (searchEl && typeof plugin.lastSearch[tabId] === "string") {
+                searchEl.setValue(plugin.lastSearch[tabId]);
+                searchEl.onChanged();
+            }
+            if (!Platform.isMobile) searchEl.inputEl.select();
+        });
         containerEl.append(settingEl);
 
         if (tabId === "plugins") {
@@ -236,13 +242,27 @@ export default class HotkeyHelper extends Plugin {
             open(old) {
                 return function(...args) {
                     if (isPluginViewer(this)) {
-                        setImmediate(() => {this.searchEl.focus()});
+                        setImmediate(() => {
+                            if (plugin.lastSearch["community-plugins"]) {
+                                // Detach the old search area, in case the empty search is still running
+                                const newResults = this.searchResultEl.cloneNode();
+                                this.searchContainerEl.replaceChild(newResults, this.searchResultEl);
+                                this.searchResultEl = newResults;
+                                // Force an update; use an event so that the "x" appears on search
+                                this.searchEl.value = plugin.lastSearch["community-plugins"];
+                                this.searchEl.dispatchEvent(new Event('input'));
+                            }
+                            this.searchEl.select();
+                        });
                         plugin.currentViewer = this;
                         around(this, {
+                            updateSearch: serialize,  // prevent race conditions
+
                             close(old) { return function(...args) {
                                 plugin.currentViewer = null;
                                 return old.apply(this, args);
                             }},
+
                             showPlugin(old) { return async function(manifest){
                                 const res = await old.call(this, manifest);
                                 if (plugin.app.plugins.plugins[manifest.id]) {
