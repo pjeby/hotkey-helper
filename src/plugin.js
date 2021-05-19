@@ -146,6 +146,18 @@ export default class HotkeyHelper extends Plugin {
                 }
             }));
         }
+
+        // Add commands
+        this.addCommand({
+            id: "open-plugins",
+            name: "Open the Community Plugins settings",
+            callback: () => this.showSettings("community-plugins") || true
+        });
+        this.addCommand({
+            id: "browse-plugins",
+            name: "Browse or search the Community Plugins catalog",
+            callback: () => this.gotoPlugin()
+        })
     }
 
     createExtraButtons(setting, manifest, enabled) {
@@ -369,13 +381,13 @@ export default class HotkeyHelper extends Plugin {
             open(old) {
                 return function(...args) {
                     remove();
-                    this.autoload = id;
+                    if (id) this.autoload = id;
                     return old.apply(this, args);
                 }
             }
         })
         this.app.setting.activeTab.containerEl.find(".mod-cta").click();
-        // XXX handle nav to not-installed plugin
+        // XXX handle nav to not-cataloged plugin
     }
 
     showSettings(id) {

@@ -38,6 +38,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./",
           "packageDependencies": [
             ["monkey-around", "npm:2.1.0"],
+            ["obsidian", "npm:0.12.2"],
             ["obsidian-rollup-presets", "virtual:a4b4f39c0b4ac097b109a3bc43258558fdaca29b426994758258dc02928efcdf621ba460010e3fd81569d7dd9bdd916026890d099e6ba2888ac66d4fd2a1f713#https://github.com/pjeby/obsidian-rollup-presets.git#commit=154ebe408bb0d64c48e464591bc5db989a4ad6ef"],
             ["rollup", "npm:2.38.1"],
             ["typescript", "patch:typescript@npm%3A4.1.3#builtin<compat/typescript>::version=4.1.3&hash=cc6730"]
@@ -180,6 +181,16 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD",
         }]
       ]],
+      ["@types/codemirror", [
+        ["npm:0.0.108", {
+          "packageLocation": "./.yarn/cache/@types-codemirror-npm-0.0.108-20a56a2340-0b66d865b1.zip/node_modules/@types/codemirror/",
+          "packageDependencies": [
+            ["@types/codemirror", "npm:0.0.108"],
+            ["@types/tern", "npm:0.23.3"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
       ["@types/cssnano", [
         ["npm:4.0.0", {
           "packageLocation": "./.yarn/cache/@types-cssnano-npm-4.0.0-09d7a81117-886c50c2bf.zip/node_modules/@types/cssnano/",
@@ -239,6 +250,16 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [
             ["@types/resolve", "npm:1.17.1"],
             ["@types/node", "npm:14.14.22"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["@types/tern", [
+        ["npm:0.23.3", {
+          "packageLocation": "./.yarn/cache/@types-tern-npm-0.23.3-42b52a2205-60b4069438.zip/node_modules/@types/tern/",
+          "packageDependencies": [
+            ["@types/tern", "npm:0.23.3"],
+            ["@types/estree", "npm:0.0.46"]
           ],
           "linkType": "HARD",
         }]
@@ -1464,6 +1485,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [
             ["hotkey-helper", "workspace:."],
             ["monkey-around", "npm:2.1.0"],
+            ["obsidian", "npm:0.12.2"],
             ["obsidian-rollup-presets", "virtual:a4b4f39c0b4ac097b109a3bc43258558fdaca29b426994758258dc02928efcdf621ba460010e3fd81569d7dd9bdd916026890d099e6ba2888ac66d4fd2a1f713#https://github.com/pjeby/obsidian-rollup-presets.git#commit=154ebe408bb0d64c48e464591bc5db989a4ad6ef"],
             ["rollup", "npm:2.38.1"],
             ["typescript", "patch:typescript@npm%3A4.1.3#builtin<compat/typescript>::version=4.1.3&hash=cc6730"]
@@ -2042,6 +2064,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD",
         }]
       ]],
+      ["moment", [
+        ["npm:2.29.1", {
+          "packageLocation": "./.yarn/cache/moment-npm-2.29.1-787d9fdafd-86729013fe.zip/node_modules/moment/",
+          "packageDependencies": [
+            ["moment", "npm:2.29.1"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
       ["monkey-around", [
         ["npm:2.1.0", {
           "packageLocation": "./.yarn/cache/monkey-around-npm-2.1.0-70df32d2ac-1bd72d25f9.zip/node_modules/monkey-around/",
@@ -2209,6 +2240,17 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["define-properties", "npm:1.1.3"],
             ["es-abstract", "npm:1.18.0-next.2"],
             ["has", "npm:1.0.3"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["obsidian", [
+        ["npm:0.12.2", {
+          "packageLocation": "./.yarn/cache/obsidian-npm-0.12.2-4e7a7f78e4-af9399b761.zip/node_modules/obsidian/",
+          "packageDependencies": [
+            ["obsidian", "npm:0.12.2"],
+            ["@types/codemirror", "npm:0.0.108"],
+            ["moment", "npm:2.29.1"]
           ],
           "linkType": "HARD",
         }]

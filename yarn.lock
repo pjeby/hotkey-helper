@@ -90,6 +90,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/codemirror@npm:0.0.108":
+  version: 0.0.108
+  resolution: "@types/codemirror@npm:0.0.108"
+  dependencies:
+    "@types/tern": "*"
+  checksum: 0b66d865b168067859df7bd2c68b56c5aa85269aa61ebd2751da4c4d8fee4f0c239fbabca8ed511578dec113c89bd76b231c3e154f01488e41bbe012088d48a0
+  languageName: node
+  linkType: hard
+
 "@types/cssnano@npm:^4.0.0":
   version: 4.0.0
   resolution: "@types/cssnano@npm:4.0.0"
@@ -140,6 +149,15 @@ __metadata:
   dependencies:
     "@types/node": "*"
   checksum: 8e72a73574f9489760662498c1ad512a8d4084a5db15f327e0d785cb277bb0a3146cd049241a8e3268bd0ed204ad3ee7b4a6b4622ef681e70547be9af258ca6a
+  languageName: node
+  linkType: hard
+
+"@types/tern@npm:*":
+  version: 0.23.3
+  resolution: "@types/tern@npm:0.23.3"
+  dependencies:
+    "@types/estree": "*"
+  checksum: 60b406943883b329a31be6d1df9c9980688c6add3533d8ad8f8d18b5ec7829a3997e012b31e62a74be216b60b2e2678fd543bc8983da1c57fa71c831374a708f
   languageName: node
   linkType: hard
 
@@ -1221,6 +1239,7 @@ fsevents@~2.1.2:
   resolution: "hotkey-helper@workspace:."
   dependencies:
     monkey-around: ^2.1
+    obsidian: ^0.12
     obsidian-rollup-presets: "github:pjeby/obsidian-rollup-presets"
     rollup: ^2.38.1
     typescript: 4.1.3
@@ -1709,6 +1728,13 @@ fsevents@~2.1.2:
   languageName: node
   linkType: hard
 
+"moment@npm:2.29.1":
+  version: 2.29.1
+  resolution: "moment@npm:2.29.1"
+  checksum: 86729013febf7160de5b93da69273dd304d674b0224f9544b3abd09a87671ddd2cdd57598261ce57588910d63747ffd5590965e83c790d8bf327083c0e0a06e0
+  languageName: node
+  linkType: hard
+
 "monkey-around@npm:^2.1":
   version: 2.1.0
   resolution: "monkey-around@npm:2.1.0"
@@ -1877,6 +1903,16 @@ fsevents@~2.1.2:
     node-sass:
       optional: true
   checksum: 2d5268765b8d55171364f8abe32920b8a9a8a1a68f13fa2c7cfcffece94888c1687ee51de8ba9af43ffdadb2365416dafd4cea19cb6b9fac179f7af32b45f6bc
+  languageName: node
+  linkType: hard
+
+"obsidian@npm:^0.12":
+  version: 0.12.2
+  resolution: "obsidian@npm:0.12.2"
+  dependencies:
+    "@types/codemirror": 0.0.108
+    moment: 2.29.1
+  checksum: af9399b761e72fc22e400612b5df1e28316e02272bfdfb9b7f7a55ff2bb70d1336a9257645fbe63275fe4488f63780719c5e49fe273deead230f0cfd5c393162
   languageName: node
   linkType: hard
 
