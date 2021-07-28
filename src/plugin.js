@@ -183,7 +183,7 @@ export default class HotkeyHelper extends Plugin {
         // Add a search filter to shrink plugin list
         const containerEl = settingEl.parentElement;
         let searchEl;
-        if (tabId !== "plugins") {
+        if (tabId !== "plugins" || this.searchInput) {
             // Replace the built-in search handler
             (searchEl = this.searchInput)?.onChange(changeHandler);
         } else {
