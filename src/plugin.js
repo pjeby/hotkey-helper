@@ -195,6 +195,14 @@ export default class HotkeyHelper extends Plugin {
             containerEl.createDiv("hotkey-search-container").append(searchEl.containerEl);
             tmp.settingEl.detach();
         }
+        if (tabId === "community-plugins") {
+            searchEl.inputEl.addEventListener("keyup", e => {
+                if (e.keyCode === 13 && !Keymap.getModifiers(e)) {
+                    this.gotoPlugin();
+                    return false;
+                }
+            })
+        }
         const plugin = this;
         function changeHandler(seek){
             const find = (plugin.lastSearch[tabId] = seek).toLowerCase();
