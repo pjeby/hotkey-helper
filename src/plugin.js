@@ -95,15 +95,29 @@ export default class HotkeyHelper extends Plugin {
         if (corePlugins) this.register(around(corePlugins, {display: this.addPluginSettingEvents.bind(this, corePlugins.id)}));
         if (community)   this.register(around(community,   {display: this.addPluginSettingEvents.bind(this, community.id)}));
 
+        const enhanceViewer = () => this.enhanceViewer();
+
         if (community)   this.register(
-            // Trap opens of the community plugins viewer
+            // Trap opens of the community plugins viewer from the settings panel
             onElement(
                 community.containerEl, "click",
                 ".mod-cta, .installed-plugins-container .setting-item-info",
-                () => this.enhanceViewer(),
+                enhanceViewer,
                 true
             )
         );
+
+        // Trap opens of the community plugins viewer via URL
+        this.register(
+            around(app.workspace.protocolHandlers, {
+                get(old) {
+                    return function get(key) {
+                        if (key === "show-plugin") enhanceViewer();
+                        return old.call(this, key);
+                    }
+                }
+            })
+        )
 
         // Now force a refresh if either plugins tab is currently visible (to show our new buttons)
         function refreshTabIfOpen() {
