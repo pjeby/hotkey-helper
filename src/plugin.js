@@ -221,6 +221,7 @@ export default class HotkeyHelper extends Plugin {
         function changeHandler(seek){
             const find = (plugin.lastSearch[tabId] = seek).toLowerCase();
             function matchAndHighlight(el) {
+                if (!el) return false;
                 const text = el.textContent = el.textContent; // clear previous highlighting, if any
                 const index = text.toLowerCase().indexOf(find);
                 if (!~index) return false;
@@ -235,7 +236,10 @@ export default class HotkeyHelper extends Plugin {
                     e.find(".setting-item-description > div:last-child") ??
                     e.find(".setting-item-description")
                 );
-                e.toggle(nameMatches || descMatches);
+                const authorMatches = matchAndHighlight(
+                    e.find(".setting-item-description > div:nth-child(2)")
+                );
+                e.toggle(nameMatches || descMatches || authorMatches);
             });
         }
         setImmediate(() => {
@@ -301,6 +305,10 @@ export default class HotkeyHelper extends Plugin {
                                 const res = await old.call(this, manifest);
                                 if (plugin.app.plugins.plugins[manifest.id]) {
                                     const buttons = this.pluginContentEl.find("button").parentElement;
+                                    const removeBtns = [i18next.t("setting.options"), i18next.t("setting.hotkeys.name")];
+                                    for (const b of buttons.findAll("button")) {
+                                        if (removeBtns.indexOf(b.textContent) !== -1) b.detach();
+                                    }
                                     const keyBtn = buttons.createEl("button", {prepend: true, text: "Hotkeys"});
                                     const cfgBtn = buttons.createEl("button", {prepend: true, text: "Options"});
                                     plugin.hotkeyButtons[manifest.id] = {
@@ -368,7 +376,7 @@ export default class HotkeyHelper extends Plugin {
                     }
                 },
                 addExtraButton(old) {
-                    return function(...args) {
+                    return function(cb) {
                         // The only "extras" added to settings w/a description are on the plugins, currently,
                         // so only try to match those to plugin names
                         if (tabId !== "plugins" && this.descEl.childElementCount && !in_event) {
@@ -376,8 +384,12 @@ export default class HotkeyHelper extends Plugin {
                                 const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
                                 trigger("plugin-settings:plugin-control", this, manifest, enabled, tabId);
                             }
+                            return old.call(this, function(b) {
+                                cb(b);
+                                if (!in_event && b.extraSettingsEl.find("svg.gear, svg.any-key")) b.extraSettingsEl.detach();
+                            });
                         };
-                        return old.apply(this, args);
+                        return old.call(this, cb);
                     }
                 }
             });
