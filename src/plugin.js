@@ -384,12 +384,12 @@ export default class HotkeyHelper extends Plugin {
                                 const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
                                 trigger("plugin-settings:plugin-control", this, manifest, enabled, tabId);
                             }
-                            return old.call(this, function(b) {
-                                cb(b);
-                                if (!in_event && b.extraSettingsEl.find("svg.gear, svg.any-key")) b.extraSettingsEl.detach();
-                            });
                         };
-                        return old.call(this, cb);
+                        return old.call(this, function(b) {
+                            cb(b);
+                            // Prevent core from showing buttons that lack hotkey counts/conflicts
+                            if (!in_event && b.extraSettingsEl.find("svg.gear, svg.any-key")) b.extraSettingsEl.detach();
+                        });
                     }
                 }
             });
