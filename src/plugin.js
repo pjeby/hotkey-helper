@@ -1,5 +1,6 @@
-import {Plugin, Platform, Keymap, Setting, Modal, debounce} from "obsidian";
+import {Plugin, Platform, Keymap, Setting, Modal, Notice, debounce} from "obsidian";
 import {around, serialize} from "monkey-around";
+import {defer, onElement} from "@ophidian/core";
 
 function hotkeyToString(hotkey) {
     return Keymap.compileModifiers(hotkey.modifiers)+"," + hotkey.key.toLowerCase()
@@ -25,11 +26,6 @@ function isPluginViewer(ob) {
         typeof ob.updateSearch === "function" &&
         typeof ob.searchEl == "object"
     );
-}
-
-function onElement(el, event, selector, callback, options=false) {
-    el.on(event, selector, callback, options)
-    return () => el.off(event, selector, callback, options);
 }
 
 export default class HotkeyHelper extends Plugin {
@@ -75,6 +71,32 @@ export default class HotkeyHelper extends Plugin {
 
     whenReady() {
         const app = this.app, plugin = this;
+        const cmdPalette = app.internalPlugins.plugins["command-palette"]?.instance?.modal;
+
+        if (cmdPalette) {
+            this.register(around(cmdPalette, {
+                onChooseItem(old) {
+                    return function oci(cmd, e) {
+                        if (Keymap.isModEvent(e)) {
+                            defer(() => plugin.showHotkeysFor(cmd.name));
+                            return false;
+                        }
+                        return old.call(this, cmd, e)
+                    };
+                }
+            }));
+            const first = cmdPalette.modalEl.find(".prompt-instructions .prompt-instruction");
+            if (first) {
+                createDiv("prompt-instruction", d => {
+                    d.createSpan({
+                        className: "prompt-instruction-command", text: Keymap.compileModifiers(["Mod"])+"+↵"
+                    });
+                    d.appendText(" ");
+                    d.createSpan({text: "to configure hotkey(s)"})
+                    this.register(() => d.detach());
+                }).insertAfter(first);
+            }
+        }
 
         // Save and restore current tab (workaround https://forum.obsidian.md/t/settings-dialog-resets-to-first-tab-every-time/18240)
         this.register(around(app.setting, {
