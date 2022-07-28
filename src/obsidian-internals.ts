@@ -49,6 +49,7 @@ declare module "obsidian" {
 
     interface SettingTab {
         id: string
+        name: string
         searchInputEl?: HTMLInputElement; // XXX should be subtypes for hotkey and plugin tabs
         updateHotkeyVisibility?(): void;
     }
@@ -59,7 +60,7 @@ declare module "obsidian" {
 
     interface Plugins {
         manifests: Record<string, PluginManifest>;
-        plugins: Record<string, Plugin>;
+        plugins: Record<string, Plugin_2>;
 
         enablePlugin(pluginId: string): Promise<boolean>;
         disblePlugin(pluginId: string): Promise<void>;
@@ -82,6 +83,7 @@ declare module "obsidian" {
 
     type InternalPluginInstance<T> = T & {
         name: string
+        hiddenFromList: boolean
     }
 
     type ViewFactory = (leaf: WorkspaceLeaf) => View

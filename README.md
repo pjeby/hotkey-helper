@@ -2,6 +2,7 @@
 
 > New in...
 >
+> * 0.3.13: Commands to let you open hotkeys or settings by typing the plugin name
 > * 0.3.12: Jump to edit a hotkey with Ctrl- or Cmd-Enter from the command palette!
 > * 0.3.8: Hit enter while typing in the community plugin search box to open the plugin catalog with that search
 > * 0.3.5: Plugin searches are saved and carry through when browsing the plugin catalog

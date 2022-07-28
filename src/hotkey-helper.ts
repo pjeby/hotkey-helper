@@ -3,7 +3,7 @@ import {
     ExtraButtonComponent, Hotkey, Command, SearchComponent
 } from "obsidian";
 import {around, serialize} from "monkey-around";
-import {defer, onElement} from "@ophidian/core";
+import {defer, modalSelect, onElement} from "@ophidian/core";
 import "./obsidian-internals";
 
 function hotkeyToString(hotkey: Hotkey) {
@@ -204,6 +204,52 @@ export default class HotkeyHelper extends Plugin {
             name: "Browse or search the Community Plugins catalog",
             callback: () => this.gotoPlugin()
         })
+        const alphaSort = new Intl.Collator(undefined, {usage: "sort", sensitivity: "base", numeric: true}).compare;
+        this.addCommand({
+            id: "open-settings",
+            name: "Open settings for plugin...",
+            callback: async () => {
+                const {item} = await modalSelect(
+                    app.setting.pluginTabs.concat(app.setting.settingTabs).sort((a, b) => alphaSort(a.name, b.name)),
+                    t => t.name,
+                    "Select a plugin to open its settings...",
+                );
+                if (item) {
+                    app.setting.open()
+                    app.setting.openTabById(item.id);
+                }
+            }
+        });
+        this.addCommand({
+            id: "open-hotkeys",
+            name: "Open hotkeys for plugin...",
+            callback: async () => {
+                const commandsByPlugin = this.refreshCommands();
+                const plugins = Object.values(app.plugins.plugins)
+                    .map(p => p.manifest as Partial<PluginManifest>)
+                    .concat(
+                        Object.entries(app.internalPlugins.plugins)
+                            .map(
+                                ([id, {instance: {name}, _loaded:enabled}]) => {return {id, name, enabled};}
+                            )
+                            .filter(p => p.enabled)
+                    )
+                    .concat([
+                        {id: "app",       name: "App"},
+                        {id: "editor",    name: this.getSettingsTab("editor")?.name || "Editor"},
+                        {id: "workspace", name: this.getSettingsTab("file")?.name   || "Files & Links"}
+                    ])
+                    .filter(m => commandsByPlugin[m.id]?.length);
+                ;
+                const {item} = await modalSelect(
+                    plugins.sort((a, b) => alphaSort(a.name, b.name)),
+                    t => t.name,
+                    "Select a plugin to open its hotkeys...");
+                if (item) {
+                    this.showHotkeysFor(item.id+":");
+                }
+            }
+        });
     }
 
     createExtraButtons(setting: Setting, manifest: {id: string, name: string}, enabled: boolean) {
@@ -390,12 +436,12 @@ export default class HotkeyHelper extends Plugin {
             let manifests: {id: string, name: string, enabled?: boolean}[];
             if (tabId === "plugins") {
                 manifests = Object.entries(app.internalPlugins.plugins).map(
-                    ([id, {instance: {name}, _loaded:enabled}]) => {return {id, name, enabled};}
-                );
+                    ([id, {instance: {name, hiddenFromList}, _loaded:enabled}]) => {return !hiddenFromList && {id, name, enabled};}
+                ).filter(m => m);
             } else {
                 manifests = Object.values(app.plugins.manifests);
-                manifests.sort((e, t) => e.name.localeCompare(t.name));
             }
+            manifests.sort((e, t) => e.name.localeCompare(t.name));
             let which = 0;
 
             // Trap the addition of the "uninstall" buttons next to each plugin
@@ -487,24 +533,30 @@ export default class HotkeyHelper extends Plugin {
         return app.internalPlugins.plugins[id]?._loaded || app.plugins.plugins[id];
     }
 
+    commandsByPlugin = {} as Record<string, {hotkeys: string[], cmd: Command}[]>;
+    assignedKeyCount = {} as Record<string, number>;
+
+    refreshCommands() {
+        const hkm = app.hotkeyManager;
+        this.assignedKeyCount = {};
+        return this.commandsByPlugin = Object.values(app.commands.commands).reduce((cmds, cmd)=>{
+            const pid = cmd.id.split(":",2).shift();
+            const hotkeys = (hkm.getHotkeys(cmd.id) || hkm.getDefaultHotkeys(cmd.id) || []).map(hotkeyToString);
+            hotkeys.forEach(k => this.assignedKeyCount[k] = 1 + (this.assignedKeyCount[k]||0));
+            (cmds[pid] || (cmds[pid]=[])).push({hotkeys, cmd});
+            return cmds;
+        }, {} as Record<string, {hotkeys: string[], cmd: Command}[]>);
+    }
+
     refreshButtons(force=false) {
         // Don't refresh when not displaying, unless rendering is in progress
         if (!pluginSettingsAreOpen() && !force) return;
 
-        const hkm = app.hotkeyManager;
-        const assignedKeyCount = {} as Record<string, number>;
-
         // Get a list of commands by plugin
-        const commands = Object.values(this.app.commands.commands).reduce((cmds, cmd)=>{
-            const pid = cmd.id.split(":",2).shift();
-            const hotkeys = (hkm.getHotkeys(cmd.id) || hkm.getDefaultHotkeys(cmd.id) || []).map(hotkeyToString);
-            hotkeys.forEach(k => assignedKeyCount[k] = 1 + (assignedKeyCount[k]||0));
-            (cmds[pid] || (cmds[pid]=[])).push({hotkeys, cmd});
-            return cmds;
-        }, {} as Record<string, {hotkeys: string[], cmd: Command}[]>);
+        this.refreshCommands();
 
         // Plugin setting tabs by plugin
-        const tabs = Object.values(this.app.setting.pluginTabs).reduce((tabs, tab)=> {
+        const tabs = Object.values(app.setting.pluginTabs).reduce((tabs, tab)=> {
             tabs[tab.id] = tab; return tabs
         }, {} as Record<string, SettingTab|boolean>);
         tabs["workspace"] = tabs["editor"] = true;
@@ -520,16 +572,16 @@ export default class HotkeyHelper extends Plugin {
 
         for(const id of Object.keys(this.hotkeyButtons || {})) {
             const btn = this.hotkeyButtons[id];
-            if (!commands[id]) {
+            if (!this.commandsByPlugin[id]) {
                 // Plugin is disabled or has no commands
                 btn.extraSettingsEl.hide();
                 continue;
             }
-            const assigned = commands[id].filter(info => info.hotkeys.length);
-            const conflicts = assigned.filter(info => info.hotkeys.filter(k => assignedKeyCount[k]>1).length).length;
+            const assigned = this.commandsByPlugin[id].filter(info => info.hotkeys.length);
+            const conflicts = assigned.filter(info => info.hotkeys.filter(k => this.assignedKeyCount[k]>1).length).length;
 
             btn.setTooltip(
-                `Configure hotkeys${"\n"}(${assigned.length}/${commands[id].length} assigned${
+                `Configure hotkeys${"\n"}(${assigned.length}/${this.commandsByPlugin[id].length} assigned${
                     conflicts ? "; "+conflicts+" conflicting" : ""
                 })`
             );
