@@ -1,7 +1,6 @@
 import Builder from "@ophidian/build";
-import {readFileSync} from "node:fs"
 
-new Builder("src/plugin.js")
+new Builder("src/hotkey-helper.ts")
 .withCss()
 .withInstall()
 .build();
