@@ -35,7 +35,6 @@ function isPluginViewer(ob: any) {
 export default class HotkeyHelper extends Plugin {
     lastSearch = {} as Record<string, string>
     hotkeyButtons = {} as Record<string, Partial<ExtraButtonComponent>>;
-    configButtons = {} as Record<string, Partial<ExtraButtonComponent>>;
     globalsAdded = false;
     searchInput: SearchComponent = null;
     lastTabId: string;
@@ -45,7 +44,6 @@ export default class HotkeyHelper extends Plugin {
         const workspace = this.app.workspace, plugin = this, events = workspace as Events;
         this.registerEvent(events.on("plugin-settings:before-display", (settingsTab, tabId) => {
             this.hotkeyButtons = {};
-            this.configButtons = {};
             this.globalsAdded = false;
             this.searchInput = null;
             const remove = around(Setting.prototype, {
@@ -62,7 +60,6 @@ export default class HotkeyHelper extends Plugin {
 
         this.registerEvent( events.on("plugin-settings:plugin-control", (setting, manifest, enabled, tabId) => {
             this.globalsAdded || this.addGlobals(tabId, setting.settingEl);
-            this.createExtraButtons(setting, manifest, enabled);
         }) );
 
         // Refresh the buttons when commands or setting tabs are added or removed
@@ -107,18 +104,6 @@ export default class HotkeyHelper extends Plugin {
                 }).insertAfter(first);
             }
         }
-
-        // Save and restore current tab (workaround https://forum.obsidian.md/t/settings-dialog-resets-to-first-tab-every-time/18240)
-        this.register(around(app.setting, {
-            onOpen(old) { return function(...args) {
-                old.apply(this, args);
-                if (!Platform.isMobile && plugin.lastTabId) this.openTabById(plugin.lastTabId);
-            }},
-            onClose(old) { return function(...args) {
-                plugin.lastTabId = this.activeTab?.id;
-                return old.apply(this, args);
-            }}
-        }))
 
         const corePlugins = this.getSettingsTab("plugins");
         const community   = this.getSettingsTab("community-plugins");
@@ -253,12 +238,11 @@ export default class HotkeyHelper extends Plugin {
     }
 
     createExtraButtons(setting: Setting, manifest: {id: string, name: string}, enabled: boolean) {
-        setting.addExtraButton(btn => {
+        if (manifest.id !== "app") setting.addExtraButton(btn => {
             btn.setIcon("gear");
             btn.onClick(() => this.showConfigFor(manifest.id.replace(/^workspace$/,"file")));
             btn.setTooltip("Options");
             btn.extraSettingsEl.toggle(enabled)
-            this.configButtons[manifest.id] = btn;
         });
         setting.addExtraButton(btn => {
             btn.setIcon("any-key");
@@ -382,26 +366,16 @@ export default class HotkeyHelper extends Plugin {
                             showPlugin(old) { return async function(manifest: PluginManifest){
                                 const res = await old.call(this, manifest);
                                 if (plugin.app.plugins.plugins[manifest.id]) {
+                                    const hotkeysName = i18next.t("setting.hotkeys.name");
                                     const buttons = this.pluginContentEl.find("button").parentElement;
-                                    const removeBtns = [i18next.t("setting.options"), i18next.t("setting.hotkeys.name")];
                                     for (const b of buttons.findAll("button")) {
-                                        if (removeBtns.indexOf(b.textContent) !== -1) b.detach();
-                                    }
-                                    const keyBtn = buttons.createEl("button", {prepend: true, text: "Hotkeys"});
-                                    const cfgBtn = buttons.createEl("button", {prepend: true, text: "Options"});
-                                    plugin.hotkeyButtons[manifest.id] = {
-                                        setTooltip(tip) {keyBtn.title = tip; return this; }, extraSettingsEl: keyBtn
-                                    }
-                                    plugin.configButtons[manifest.id] = {
-                                        setTooltip() { return this; }, extraSettingsEl: cfgBtn
+                                        if (b.textContent === hotkeysName) {
+                                            plugin.hotkeyButtons[manifest.id] = {
+                                                setTooltip(tip) {b.title = tip; return this; }, extraSettingsEl: b
+                                            }
+                                        };
                                     }
                                     plugin.refreshButtons(true);
-                                    keyBtn.addEventListener("click",  () => {
-                                        this.close(); plugin.showHotkeysFor(manifest.id+":");
-                                    });
-                                    cfgBtn.addEventListener("click",  () => {
-                                        this.close(); plugin.showConfigFor(manifest.id);
-                                    });
                                 }
                                 return res;
                             }}
@@ -418,7 +392,7 @@ export default class HotkeyHelper extends Plugin {
     }
 
     addPluginSettingEvents(tabId: string, old: SettingTab["display"]) {
-        const app = this.app;
+        const app = this.app, plugin = this;
         let in_event = false;
 
         function trigger(name: string, ...args: any[]) {
@@ -442,7 +416,7 @@ export default class HotkeyHelper extends Plugin {
                 manifests = Object.values(app.plugins.manifests);
             }
             manifests.sort((e, t) => e.name.localeCompare(t.name));
-            let which = 0;
+            let which = 0, currentId = "";
 
             // Trap the addition of the "uninstall" buttons next to each plugin
             const remove = around(Setting.prototype, {
@@ -450,6 +424,7 @@ export default class HotkeyHelper extends Plugin {
                     return function(...args) {
                         if (tabId === "plugins" && !in_event && (manifests[which]||{}).name === this.nameEl.textContent ) {
                             const manifest = manifests[which++];
+                            currentId = manifest.id;
                             trigger("plugin-settings:plugin-control", this, manifest, manifest.enabled, tabId);
                         }
                         return old.apply(this, args);
@@ -462,13 +437,16 @@ export default class HotkeyHelper extends Plugin {
                         if (tabId !== "plugins" && this.descEl.childElementCount && !in_event) {
                             if ( (manifests[which]||{}).name === this.nameEl.textContent ) {
                                 const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
+                                currentId = manifest.id
                                 trigger("plugin-settings:plugin-control", this, manifest, enabled, tabId);
                             }
                         };
                         return old.call(this, function(b: ExtraButtonComponent) {
                             cb(b);
-                            // Prevent core from showing buttons that lack hotkey counts/conflicts
-                            if (!in_event && b.extraSettingsEl.find("svg.gear, svg.any-key")) b.extraSettingsEl.detach();
+                            // Add key count/conflict indicators to built-in key buttons
+                            if (!in_event && b.extraSettingsEl.find("svg.any-key") && currentId) {
+                                plugin.hotkeyButtons[currentId] = b;
+                            }
                         });
                     }
                 }
@@ -560,15 +538,6 @@ export default class HotkeyHelper extends Plugin {
             tabs[tab.id] = tab; return tabs
         }, {} as Record<string, SettingTab|boolean>);
         tabs["workspace"] = tabs["editor"] = true;
-
-        for(const id of Object.keys(this.configButtons || {})) {
-            const btn = this.configButtons[id];
-            if (!tabs[id]) {
-                btn.extraSettingsEl.hide();
-                continue;
-            }
-            btn.extraSettingsEl.show();
-        }
 
         for(const id of Object.keys(this.hotkeyButtons || {})) {
             const btn = this.hotkeyButtons[id];
