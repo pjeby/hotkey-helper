@@ -338,7 +338,7 @@ export default class HotkeyHelper extends Plugin {
 
     enhanceViewer() {
         const plugin = this;
-        defer(around(Modal.prototype, {
+        setTimeout(around(Modal.prototype, {
             open(old) {
                 return function(...args) {
                     if (isPluginViewer(this)) {
@@ -384,7 +384,7 @@ export default class HotkeyHelper extends Plugin {
                     return old.apply(this, args);
                 }
             }
-        }));
+        }), 0);
     }
 
     getSettingsTab(id: string) {
