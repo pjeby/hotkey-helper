@@ -75,6 +75,7 @@ declare module "obsidian" {
     interface InternalPlugin<T> extends Component {
         /** The actual internal plugin object (state and methods). */
         instance: InternalPluginInstance<T>;
+        enabled: boolean;
     }
 
     interface InternalPlugins {

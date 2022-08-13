@@ -420,32 +420,21 @@ export default class HotkeyHelper extends Plugin {
 
             // Trap the addition of the "uninstall" buttons next to each plugin
             const remove = around(Setting.prototype, {
-                addToggle(old) {
-                    return function(...args) {
-                        if (tabId === "plugins" && !in_event && (manifests[which]||{}).name === this.nameEl.textContent ) {
-                            const manifest = manifests[which++];
-                            currentId = manifest.id;
-                            trigger("plugin-settings:plugin-control", this, manifest, manifest.enabled, tabId);
-                        }
-                        return old.apply(this, args);
-                    }
-                },
                 addExtraButton(old) {
                     return function(cb) {
                         // The only "extras" added to settings w/a description are on the plugins, currently,
                         // so only try to match those to plugin names
-                        if (tabId !== "plugins" && this.descEl.childElementCount && !in_event) {
-                            if ( (manifests[which]||{}).name === this.nameEl.textContent ) {
-                                const manifest = manifests[which++], enabled = !!app.plugins.plugins[manifest.id];
-                                currentId = manifest.id
-                                trigger("plugin-settings:plugin-control", this, manifest, enabled, tabId);
-                            }
-                        };
+                        if (!in_event && (tabId === "plugins" || this.descEl.childElementCount) && (manifests[which]||{}).name === this.nameEl.textContent) {
+                            const manifest = manifests[which++];
+                            currentId = manifest.id;
+                            trigger("plugin-settings:plugin-control", this, manifest, manifest.enabled, tabId);
+                        }
                         return old.call(this, function(b: ExtraButtonComponent) {
                             cb(b);
                             // Add key count/conflict indicators to built-in key buttons
                             if (!in_event && b.extraSettingsEl.find("svg.any-key, svg.lucide-plus-circle") && currentId) {
                                 plugin.hotkeyButtons[currentId] = b;
+                                b.onClick(plugin.showHotkeysFor.bind(plugin, currentId+":"));
                             }
                         });
                     }
@@ -541,7 +530,7 @@ export default class HotkeyHelper extends Plugin {
 
         for(const id of Object.keys(this.hotkeyButtons || {})) {
             const btn = this.hotkeyButtons[id];
-            if (!this.commandsByPlugin[id]) {
+            if (!this.commandsByPlugin[id] || app.internalPlugins.plugins[id]?.enabled === false) {
                 // Plugin is disabled or has no commands
                 btn.extraSettingsEl.hide();
                 continue;
