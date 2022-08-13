@@ -444,7 +444,7 @@ export default class HotkeyHelper extends Plugin {
                         return old.call(this, function(b: ExtraButtonComponent) {
                             cb(b);
                             // Add key count/conflict indicators to built-in key buttons
-                            if (!in_event && b.extraSettingsEl.find("svg.any-key") && currentId) {
+                            if (!in_event && b.extraSettingsEl.find("svg.any-key, svg.lucide-plus-circle") && currentId) {
                                 plugin.hotkeyButtons[currentId] = b;
                             }
                         });
