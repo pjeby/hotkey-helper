@@ -51,6 +51,9 @@ declare module "obsidian" {
         id: string
         name: string
         searchInputEl?: HTMLInputElement; // XXX should be subtypes for hotkey and plugin tabs
+        searchComponent?: {
+            inputEl?: HTMLInputElement;
+        }
         updateHotkeyVisibility?(): void;
     }
 

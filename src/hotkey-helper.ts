@@ -149,10 +149,12 @@ export default class HotkeyHelper extends Plugin {
         const hotkeysTab = this.getSettingsTab("hotkeys") as SettingTab & {updateHotkeyVisibility(): void };
         if (hotkeysTab) {
             this.register(around(hotkeysTab, {
-                display(old) { return function() { old.call(this); this.searchInputEl.focus(); }; },
+                display(old) { return function() { old.call(this); (this.searchInputEl ?? this.searchComponent.inputEl)?.focus(); }; },
                 updateHotkeyVisibility(old) {
                     return function() {
-                        const oldSearch = this.searchInputEl.value, oldCommands = app.commands.commands;
+                        const searchInputEl = (this.searchInputEl ?? this.searchComponent.inputEl);
+                        if (!searchInputEl) return old.call(this);
+                        const oldSearch = searchInputEl.value, oldCommands = app.commands.commands;
                         try {
                             if (oldSearch.endsWith(":") && !oldSearch.contains(" ")) {
                                 // This is an incredibly ugly hack that relies on updateHotkeyVisibility() iterating app.commands.commands
@@ -161,7 +163,7 @@ export default class HotkeyHelper extends Plugin {
                                 let filtered = Object.fromEntries(Object.entries(app.commands.commands).filter(
                                     ([id, cmd]) => (id+":").startsWith(oldSearch)
                                 ));
-                                this.searchInputEl.value = "";
+                                searchInputEl.value = "";
                                 app.commands.commands = new Proxy(oldCommands, {ownKeys(){
                                     // The first time commands are iterated, return the whole thing;
                                     // after that, return the filtered list
@@ -170,7 +172,7 @@ export default class HotkeyHelper extends Plugin {
                             }
                             return old.call(this);
                         } finally {
-                            this.searchInputEl.value = oldSearch;
+                            searchInputEl.value = oldSearch;
                             app.commands.commands = oldCommands;
                         }
                     }
@@ -482,8 +484,8 @@ export default class HotkeyHelper extends Plugin {
 
     showHotkeysFor(search: string) {
         const tab = this.showSettings("hotkeys");
-        if (tab && tab.searchInputEl && tab.updateHotkeyVisibility) {
-            tab.searchInputEl.value = search;
+        if (tab && (tab.searchInputEl ?? tab.searchComponent.inputEl) && tab.updateHotkeyVisibility) {
+            (tab.searchInputEl ?? tab.searchComponent.inputEl).value = search;
             tab.updateHotkeyVisibility();
         }
     }
