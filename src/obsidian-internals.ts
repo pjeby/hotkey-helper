@@ -1,9 +1,5 @@
 import {i18n} from "i18next";
 
-declare global {
-    const i18next: i18n
-}
-
 declare module "obsidian" {
     namespace Keymap {
         function compileModifiers(mods: string[]): string
@@ -79,6 +75,7 @@ declare module "obsidian" {
         /** The actual internal plugin object (state and methods). */
         instance: InternalPluginInstance<T>;
         enabled: boolean;
+        _loaded: boolean;
     }
 
     interface InternalPlugins {

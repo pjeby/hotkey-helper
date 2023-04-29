@@ -6,6 +6,23 @@ import {around, serialize} from "monkey-around";
 import {defer, modalSelect, onElement} from "@ophidian/core";
 import "./obsidian-internals";
 
+interface OldPluginViewer extends Modal { // pre 1.0
+    autoopen?: string
+    showPlugin(manifest: PluginManifest): Promise<void>
+    updateSearch(): any
+    searchEl: HTMLInputElement
+    pluginContentEl: HTMLDivElement
+}
+
+interface NewPluginViewer extends Modal { // 1.0+
+    setAutoOpen(pluginId: string): this
+    showItem(manifest: PluginManifest): Promise<void>
+    updateItems(): void
+    search: { inputEl: HTMLInputElement }
+    detailsEl: HTMLDivElement
+}
+
+
 function hotkeyToString(hotkey: Hotkey) {
     return Keymap.compileModifiers(hotkey.modifiers)+"," + hotkey.key.toLowerCase()
 }
@@ -22,7 +39,7 @@ function settingsAreOpen() {
     return app.setting.containerEl.parentElement !== null
 }
 
-function isPluginViewer(ob: any) {
+function isPluginViewer(ob: any): ob is OldPluginViewer {
     return (
         ob instanceof Modal &&
         ob.hasOwnProperty("autoload") &&
@@ -30,6 +47,14 @@ function isPluginViewer(ob: any) {
         typeof (ob as any).updateSearch === "function" &&
         typeof (ob as any).searchEl == "object"
     );
+}
+
+function isNewPluginViewer(ob: any): ob is NewPluginViewer {
+    return (
+        ob instanceof Modal &&
+        typeof (ob as any).setAutoOpen === "function" &&
+        typeof (ob as any).search?.inputEl === "object"
+    )
 }
 
 export default class HotkeyHelper extends Plugin {
@@ -343,6 +368,39 @@ export default class HotkeyHelper extends Plugin {
         setTimeout(around(Modal.prototype, {
             open(old) {
                 return function(...args) {
+                    if (isNewPluginViewer(this)) {
+                        defer(() => {
+                            if (plugin.lastSearch["community-plugins"]) {
+                                this.search.inputEl.value = plugin.lastSearch["community-plugins"];
+                                this.search.inputEl.dispatchEvent(new Event('input'));
+                            }
+                        });
+                        plugin.currentViewer = this;
+                        around(this, {
+                            close(old) { return function(...args: any[]) {
+                                plugin.currentViewer = null;
+                                return old.apply(this, args);
+                            }},
+
+                            showItem(old) { return async function(manifest: PluginManifest){
+                                const res = await old.call(this, manifest);
+                                if (plugin.app.plugins.plugins[manifest.id]) {
+                                    const hotkeysName = i18next.t("setting.hotkeys.name");
+                                    const buttons = this.detailsEl.find("button").parentElement;
+                                    for (const b of buttons.findAll("button")) {
+                                        if (b.textContent === hotkeysName) {
+                                            plugin.hotkeyButtons[manifest.id] = {
+                                                setTooltip(tip) {b.title = tip; return this; }, extraSettingsEl: b
+                                            }
+                                        };
+                                    }
+                                    plugin.refreshButtons(true);
+                                }
+                                return res;
+                            }}
+                        })
+                    }
+                    // Pre 1.0
                     if (isPluginViewer(this)) {
                         defer(() => {
                             if (plugin.lastSearch["community-plugins"]) {
@@ -464,7 +522,7 @@ export default class HotkeyHelper extends Plugin {
             open(old) {
                 return function(...args) {
                     remove();
-                    if (id) this.autoload = id;
+                    if (id) { this.autoload = id; this.setAutoOpen?.(id); }
                     return old.apply(this, args);
                 }
             }
