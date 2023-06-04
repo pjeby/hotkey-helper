@@ -5,6 +5,7 @@ import {
 import {around, serialize} from "monkey-around";
 import {defer, modalSelect, onElement} from "@ophidian/core";
 import "./obsidian-internals";
+import "../styles.css";
 
 interface OldPluginViewer extends Modal { // pre 1.0
     autoopen?: string
@@ -299,7 +300,7 @@ export default class HotkeyHelper extends Plugin {
             tmp.settingEl.detach();
         }
         if (tabId === "community-plugins") {
-            searchEl.inputEl.addEventListener("keyup", e => {
+            searchEl.inputEl.addEventListener("keydown", e => {
                 if (e.keyCode === 13 && !Keymap.getModifiers(e)) {
                     this.gotoPlugin();
                     return false;
@@ -535,7 +536,7 @@ export default class HotkeyHelper extends Plugin {
         this.currentViewer?.close();  // close the plugin browser if open
         settingsAreOpen() || app.setting.open();
         if (id) {
-            app.setting.openTabById(id);
+            if (app.setting.activeTab?.id !== id) app.setting.openTabById(id);
             return app.setting.activeTab?.id === id ? app.setting.activeTab : false
         }
     }
