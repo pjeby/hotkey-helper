@@ -323,8 +323,8 @@ export default class HotkeyHelper extends Plugin {
             containerEl.findAll(".setting-item").forEach(e => {
                 const nameMatches = matchAndHighlight(e.find(".setting-item-name"));
                 const descMatches = matchAndHighlight(
-                    e.find(".setting-item-description > div:last-child") ??
-                    e.find(".setting-item-description")
+                    e.find(".setting-item-description > div:last-child:not(.plugin-comment)") ??
+                    e.find(".setting-item-description > div:nth-child(3):not(.plugin-comment)")
                 );
                 const authorMatches = matchAndHighlight(
                     e.find(".setting-item-description > div:nth-child(2)")
