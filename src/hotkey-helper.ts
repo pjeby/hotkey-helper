@@ -3,7 +3,7 @@ import {
     ExtraButtonComponent, Hotkey, Command, SearchComponent
 } from "obsidian";
 import {around, serialize} from "monkey-around";
-import {defer, modalSelect, onElement} from "@ophidian/core";
+import {defer, modalSelect, onElement, use, app} from "@ophidian/core";
 import "./obsidian-internals";
 import "../styles.css";
 
@@ -66,6 +66,8 @@ export default class HotkeyHelper extends Plugin {
     lastTabId: string;
     currentViewer: Modal;
 
+    use = use.plugin(this);
+
     onload() {
         const workspace = this.app.workspace, plugin = this, events = workspace as Events;
         this.registerEvent(events.on("plugin-settings:before-display", (settingsTab, tabId) => {
@@ -120,14 +122,17 @@ export default class HotkeyHelper extends Plugin {
             }));
             const first = cmdPalette.modalEl.find(".prompt-instructions .prompt-instruction");
             if (first) {
-                createDiv("prompt-instruction", d => {
-                    d.createSpan({
-                        cls: "prompt-instruction-command", text: Keymap.compileModifiers(["Mod"])+"+↵"
-                    });
-                    d.appendText(" ");
-                    d.createSpan({text: "to configure hotkey(s)"})
-                    this.register(() => d.detach());
-                }).insertAfter(first);
+                first.parentNode.insertBefore(
+                    createDiv("prompt-instruction", d => {
+                        d.createSpan({
+                            cls: "prompt-instruction-command", text: Keymap.compileModifiers(["Mod"])+"+↵"
+                        });
+                        d.appendText(" ");
+                        d.createSpan({text: "to configure hotkey(s)"})
+                        this.register(() => d.detach());
+                    }),
+                    null
+                )
             }
         }
 
@@ -228,8 +233,7 @@ export default class HotkeyHelper extends Plugin {
                     "Select a plugin to open its settings...",
                 );
                 if (item) {
-                    app.setting.open()
-                    app.setting.openTabById(item.id);
+                    this.showSettings(item.id);
                 }
             }
         });
@@ -518,7 +522,7 @@ export default class HotkeyHelper extends Plugin {
             return;
         }
 
-        this.showSettings("community-plugins");
+        if (!this.showSettings("community-plugins")) return;
         const remove = around(Modal.prototype, {
             open(old) {
                 return function(...args) {
