@@ -1,6 +1,6 @@
 import {
     Events, Plugin, Platform, Keymap, Setting, Modal, Notice, debounce, SettingTab, PluginManifest,
-    ExtraButtonComponent, Hotkey, Command, SearchComponent
+    ExtraButtonComponent, Hotkey, Command, SearchComponent, SettingGroup
 } from "obsidian";
 import {around, serialize} from "monkey-around";
 import {defer, modalSelect, onElement, use, app} from "@ophidian/core";
@@ -74,15 +74,18 @@ export default class HotkeyHelper extends Plugin {
             this.hotkeyButtons = {};
             this.globalsAdded = false;
             this.searchInput = null;
-            const remove = around(Setting.prototype, {
-                addSearch(old) { return function(f) {
-                    remove();
-                    return old.call(this, (i: SearchComponent) => {
-                        plugin.searchInput = i; f?.(i);
-                    })
-                }}
-            });
-            defer(remove);
+            for (const cls of [SettingGroup, Setting].filter(c => !!c)) {
+                const remove = around(cls.prototype, {
+                    addSearch(old: ((SettingGroup | Setting)["addSearch"])) {
+                        return function(f: (component: SearchComponent) => any) {
+                            remove();
+                            return old.call(this, (i: SearchComponent) => {
+                                plugin.searchInput = i; f?.(i);
+                            })
+                        }}
+                })
+                defer(remove);
+            }
         }) );
         this.registerEvent( events.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
 

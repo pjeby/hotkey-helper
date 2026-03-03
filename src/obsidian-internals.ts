@@ -5,6 +5,11 @@ declare module "obsidian" {
         function compileModifiers(mods: string[]): string
         function getModifiers(event: MouseEvent|KeyboardEvent): string
     }
+
+    class SettingGroup {
+        addSearch(cb: (component: SearchComponent) => any): this
+    }
+
     interface App {
         plugins: Plugins
         commands: Commands
