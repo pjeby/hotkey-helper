@@ -6,6 +6,7 @@
   },
   "license": "ISC",
   "type": "module",
+  "packageManager": "pnpm@7.33.6",
   "devDependencies": {
     "@ophidian/build": "^1.2",
     "@ophidian/core": "0.0.23",

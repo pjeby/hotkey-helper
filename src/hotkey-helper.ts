@@ -1,6 +1,6 @@
 import {
     Events, Plugin, Platform, Keymap, Setting, Modal, Notice, debounce, SettingTab, PluginManifest,
-    ExtraButtonComponent, Hotkey, Command, SearchComponent, SettingGroup
+    ExtraButtonComponent, Hotkey, Command, SearchComponent, SettingGroup, requireApiVersion
 } from "obsidian";
 import {around, serialize} from "monkey-around";
 import {defer, modalSelect, onElement, use, app} from "@ophidian/core";
@@ -160,7 +160,7 @@ export default class HotkeyHelper extends Plugin {
 
         // Trap opens of the community plugins viewer via URL
         this.register(
-            around(app.workspace.protocolHandlers, {
+            around((app.workspace.protocolHandlers ?? app.workspace.protocolHandler.handlers), {
                 get(old) {
                     return function get(key: string) {
                         if (key === "show-plugin") enhanceViewer();
@@ -180,11 +180,13 @@ export default class HotkeyHelper extends Plugin {
         this.register(() => defer(refreshTabIfOpen));
 
         // Tweak the hotkey settings tab to make filtering work on id prefixes as well as command names
-        const hotkeysTab = this.getSettingsTab("hotkeys") as SettingTab & {updateHotkeyVisibility(): void };
+        const hotkeysTab = this.getSettingsTab("hotkeys") as SettingTab;
         if (hotkeysTab) {
             this.register(around(hotkeysTab, {
                 display(old) { return function() { old.call(this); (this.searchInputEl ?? this.searchComponent.inputEl)?.focus(); }; },
-                updateHotkeyVisibility(old) {
+                [hotkeysTab.updateHotkeyVisibility ? "updateHotkeyVisibility" : "renderHotkeyList"](
+                    old: (this: typeof HotkeyHelper) => void
+                ) {
                     return function() {
                         const searchInputEl = (this.searchInputEl ?? this.searchComponent.inputEl);
                         if (!searchInputEl) return old.call(this);
@@ -195,7 +197,7 @@ export default class HotkeyHelper extends Plugin {
                                 // looking for hotkey conflicts *before* anything else.
                                 let current = oldCommands;
                                 let filtered = Object.fromEntries(Object.entries(app.commands.commands).filter(
-                                    ([id, cmd]) => (id+":").startsWith(oldSearch)
+                                    ([id, _cmd]) => (id+":").startsWith(oldSearch)
                                 ));
                                 searchInputEl.value = "";
                                 app.commands.commands = new Proxy(oldCommands, {ownKeys(){
@@ -203,6 +205,7 @@ export default class HotkeyHelper extends Plugin {
                                     // after that, return the filtered list
                                     try { return Object.keys(current); } finally { current = filtered; }
                                 }});
+                                if (requireApiVersion("1.13.0")) app.commands.commands = filtered;
                             }
                             return old.call(this);
                         } finally {
@@ -550,9 +553,11 @@ export default class HotkeyHelper extends Plugin {
 
     showHotkeysFor(search: string) {
         const tab = this.showSettings("hotkeys");
-        if (tab && (tab.searchInputEl ?? tab.searchComponent.inputEl) && tab.updateHotkeyVisibility) {
-            (tab.searchInputEl ?? tab.searchComponent.inputEl).value = search;
-            tab.updateHotkeyVisibility();
+        if (tab && (tab.searchInputEl ?? tab.searchComponent.inputEl)) {
+            if (tab.setQuery) tab.setQuery(search); else {
+                (tab.searchInputEl ?? tab.searchComponent.inputEl).value = search;
+                tab.updateHotkeyVisibility ? tab.updateHotkeyVisibility() : tab.renderHotkeyList?.();
+            }
         }
     }
 

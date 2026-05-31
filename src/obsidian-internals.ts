@@ -19,7 +19,10 @@ declare module "obsidian" {
     }
 
     interface Workspace {
-        protocolHandlers: Map<string, ObsidianProtocolHandler>
+        protocolHandlers?: Map<string, ObsidianProtocolHandler>
+        protocolHandler?: {
+            handlers: Map<string, ObsidianProtocolHandler>
+        }
     }
 
     interface Commands {
@@ -55,7 +58,11 @@ declare module "obsidian" {
         searchComponent?: {
             inputEl?: HTMLInputElement;
         }
+
+        // These are (possibly) on the Hotkeys tab
         updateHotkeyVisibility?(): void;
+        renderHotkeyList?(): void;
+        setQuery?(search: string): void;
     }
 
     interface SearchComponent {
@@ -64,7 +71,7 @@ declare module "obsidian" {
 
     interface Plugins {
         manifests: Record<string, PluginManifest>;
-        plugins: Record<string, Plugin_2>;
+        plugins: Record<string, Plugin>;
 
         enablePlugin(pluginId: string): Promise<boolean>;
         disblePlugin(pluginId: string): Promise<void>;
