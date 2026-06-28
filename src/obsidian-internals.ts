@@ -58,6 +58,7 @@ declare module "obsidian" {
         searchComponent?: {
             inputEl?: HTMLInputElement;
         }
+        renderTab?(): void;
 
         // These are (possibly) on the Hotkeys tab
         updateHotkeyVisibility?(): void;

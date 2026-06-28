@@ -142,9 +142,13 @@ export default class HotkeyHelper extends Plugin {
         const corePlugins = this.getSettingsTab("plugins");
         const community   = this.getSettingsTab("community-plugins");
 
-        // Hook into the display() method of the plugin settings tabs
-        if (corePlugins) this.register(around(corePlugins, {display: this.addPluginSettingEvents.bind(this, corePlugins.id)}));
-        if (community)   this.register(around(community,   {display: this.addPluginSettingEvents.bind(this, community.id)}));
+        // Hook into the display() or renderTab() method of the plugin settings tabs
+        if (corePlugins) this.register(around(corePlugins, {
+            [corePlugins.renderTab ? "renderTab" : "display"]: this.addPluginSettingEvents.bind(this, corePlugins.id)
+        }));
+        if (community)   this.register(around(community,   {
+            [community.renderTab ? "renderTab" : "display"]: this.addPluginSettingEvents.bind(this, community.id)
+        }));
 
         const enhanceViewer = () => this.enhanceViewer();
 
