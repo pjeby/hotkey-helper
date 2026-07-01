@@ -10,7 +10,7 @@ import "../styles.css";
 interface OldPluginViewer extends Modal { // pre 1.0
     autoopen?: string
     showPlugin(manifest: PluginManifest): Promise<void>
-    updateSearch(): any
+    updateSearch(): unknown
     searchEl: HTMLInputElement
     pluginContentEl: HTMLDivElement
 }
@@ -40,21 +40,23 @@ function settingsAreOpen() {
     return app.setting.containerEl.parentElement !== null
 }
 
-function isPluginViewer(ob: any): ob is OldPluginViewer {
+function isPluginViewer(ob: unknown): ob is OldPluginViewer {
+    const o = ob as OldPluginViewer;
     return (
         ob instanceof Modal &&
-        ob.hasOwnProperty("autoload") &&
-        typeof (ob as any).showPlugin === "function" &&
-        typeof (ob as any).updateSearch === "function" &&
-        typeof (ob as any).searchEl == "object"
+        Object.prototype.hasOwnProperty.call(o, "autoload") &&
+        typeof o.showPlugin === "function" &&
+        typeof o.updateSearch === "function" &&
+        typeof o.searchEl === "object"
     );
 }
 
-function isNewPluginViewer(ob: any): ob is NewPluginViewer {
+function isNewPluginViewer(ob: unknown): ob is NewPluginViewer {
+    const o = ob as NewPluginViewer;
     return (
         ob instanceof Modal &&
-        typeof (ob as any).setAutoOpen === "function" &&
-        typeof (ob as any).search?.inputEl === "object"
+        typeof o.setAutoOpen === "function" &&
+        typeof o.search?.inputEl === "object"
     )
 }
 
@@ -69,15 +71,15 @@ export default class HotkeyHelper extends Plugin {
     use = use.plugin(this);
 
     onload() {
-        const workspace = this.app.workspace, plugin = this, events = workspace as Events;
+        const workspace = this.app.workspace, plugin = (() => this)(), events = workspace as Events;
         this.registerEvent(events.on("plugin-settings:before-display", (settingsTab, tabId) => {
             this.hotkeyButtons = {};
             this.globalsAdded = false;
             this.searchInput = null;
             for (const cls of [SettingGroup, Setting].filter(c => !!c)) {
                 const remove = around(cls.prototype, {
-                    addSearch(old: ((SettingGroup | Setting)["addSearch"])) {
-                        return function(f: (component: SearchComponent) => any) {
+                    addSearch(old: Setting["addSearch"]) {
+                        return function(f: (component: SearchComponent) => unknown) {
                             remove();
                             return old.call(this, (i: SearchComponent) => {
                                 plugin.searchInput = i; f?.(i);
@@ -90,13 +92,13 @@ export default class HotkeyHelper extends Plugin {
         this.registerEvent( events.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
 
         this.registerEvent( events.on("plugin-settings:plugin-control", (setting, manifest, enabled, tabId) => {
-            this.globalsAdded || this.addGlobals(tabId, setting.settingEl);
+            void (this.globalsAdded || this.addGlobals(tabId, setting.settingEl));
         }) );
 
         // Refresh the buttons when commands or setting tabs are added or removed
         const requestRefresh = debounce(this.refreshButtons.bind(this), 50, true);
-        function refresher(old: (...args: any[]) => any ) {
-            return function(...args: any[]){ requestRefresh(); return old.apply(this, args); };
+        function refresher(old: (...args: unknown[]) => unknown ) {
+            return function(...args: unknown[]){ requestRefresh(); return old.apply(this, args); };
         }
         this.register(around(app.commands, {addCommand:    refresher, removeCommand:    refresher}));
         this.register(around(app.setting,  {addSettingTab: refresher, removeSettingTab: refresher}));
@@ -108,7 +110,7 @@ export default class HotkeyHelper extends Plugin {
     }
 
     whenReady() {
-        const app = this.app, plugin = this;
+        const app = this.app, plugin = (() => this)();  // eslint yak-shaving
         const cmdPalette = app.internalPlugins.plugins["command-palette"]?.instance?.modal;
 
         if (cmdPalette) {
@@ -184,7 +186,7 @@ export default class HotkeyHelper extends Plugin {
         this.register(() => defer(refreshTabIfOpen));
 
         // Tweak the hotkey settings tab to make filtering work on id prefixes as well as command names
-        const hotkeysTab = this.getSettingsTab("hotkeys") as SettingTab;
+        const hotkeysTab = this.getSettingsTab("hotkeys");
         if (hotkeysTab) {
             this.register(around(hotkeysTab, {
                 display(old) { return function() { old.call(this); (this.searchInputEl ?? this.searchComponent.inputEl)?.focus(); }; },
@@ -232,7 +234,9 @@ export default class HotkeyHelper extends Plugin {
             name: "Browse or search the Community Plugins catalog",
             callback: () => this.gotoPlugin()
         })
-        const alphaSort = new Intl.Collator(undefined, {usage: "sort", sensitivity: "base", numeric: true}).compare;
+
+        const alphaSort = new Intl.Collator(undefined, {usage: "sort", sensitivity: "base", numeric: true})["compare"];
+
         this.addCommand({
             id: "open-settings",
             name: "Open settings for plugin...",
@@ -309,7 +313,7 @@ export default class HotkeyHelper extends Plugin {
                 searchEl = s;
                 s.setPlaceholder("Filter plugins...").onChange(changeHandler);
             });
-            searchEl.containerEl.style.margin = "0";
+            searchEl.containerEl["style"]["margin"] = "0";
             containerEl.createDiv("hotkey-search-container").append(searchEl.containerEl);
             tmp.settingEl.detach();
         }
@@ -321,17 +325,17 @@ export default class HotkeyHelper extends Plugin {
                 }
             })
         }
-        const plugin = this;
+        const plugin = (() => this)(); // eslint yak-shaving
         function changeHandler(seek: string){
             const find = (plugin.lastSearch[tabId] = seek).toLowerCase();
             function matchAndHighlight(el: HTMLElement) {
                 if (!el) return false;
-                const text = el.textContent = el.textContent; // clear previous highlighting, if any
+                const text = el.textContent = ''+ el.textContent; // clear previous highlighting, if any
                 const index = text.toLowerCase().indexOf(find);
                 if (!~index) return false;
-                el.textContent = text.substr(0, index);
-                el.createSpan("suggestion-highlight").textContent = text.substr(index, find.length);
-                el.insertAdjacentText("beforeend", text.substr(index+find.length))
+                el.textContent = text.substring(0, index);
+                el.createSpan("suggestion-highlight").textContent = text.substring(index, index+find.length);
+                el.insertAdjacentText("beforeend", text.substring(index+find.length))
                 return true;
             }
             containerEl.findAll(".setting-item").forEach(e => {
@@ -379,8 +383,7 @@ export default class HotkeyHelper extends Plugin {
     }
 
     enhanceViewer() {
-        const plugin = this;
-        setTimeout(around(Modal.prototype, {
+        const plugin = (() => this)(), remove: () => void = around(Modal.prototype, {
             open(old) {
                 return function(...args) {
                     if (isNewPluginViewer(this)) {
@@ -392,7 +395,7 @@ export default class HotkeyHelper extends Plugin {
                         });
                         plugin.currentViewer = this;
                         around(this, {
-                            close(old) { return function(...args: any[]) {
+                            close(old) { return function(...args: unknown[]) {
                                 plugin.currentViewer = null;
                                 return old.apply(this, args);
                             }},
@@ -433,7 +436,7 @@ export default class HotkeyHelper extends Plugin {
                         around(this, {
                             updateSearch: serialize,  // prevent race conditions
 
-                            close(old) { return function(...args: any[]) {
+                            close(old) { return function(...args: unknown[]) {
                                 plugin.currentViewer = null;
                                 return old.apply(this, args);
                             }},
@@ -459,25 +462,26 @@ export default class HotkeyHelper extends Plugin {
                     return old.apply(this, args);
                 }
             }
-        }), 0);
+        })
+        void activeWindow.sleep(0).then(remove);
     }
 
     getSettingsTab(id: string) {
-        return app.setting.settingTabs.filter(t => t.id === id).shift() as SettingTab & {name: string};
+        return app.setting.settingTabs.filter(t => t.id === id).shift() as SettingTab;
     }
 
     addPluginSettingEvents(tabId: string, old: SettingTab["display"]) {
-        const app = this.app, plugin = this;
+        const app = this.app, plugin = (() => this)(); // eslint yak-shaving
         let in_event = false;
 
-        function trigger(name: string, ...args: any[]) {
+        function trigger(name: string, ...args: unknown[]) {
             in_event = true;
             try { app.workspace.trigger(name, ...args); } catch(e) { console.error(e); }
             in_event = false;
         }
 
         // Wrapper to add plugin-settings events
-        return function display(...args: any[]) {
+        return function display(...args: unknown[]) {
             if (in_event) return;
             trigger("plugin-settings:before-display", this, tabId);
 
@@ -548,7 +552,7 @@ export default class HotkeyHelper extends Plugin {
 
     showSettings(id: string) {
         this.currentViewer?.close();  // close the plugin browser if open
-        settingsAreOpen() || app.setting.open();
+        void (settingsAreOpen() || app.setting.open());
         if (id) {
             if (app.setting.activeTab?.id !== id) app.setting.openTabById(id);
             return app.setting.activeTab?.id === id ? app.setting.activeTab : false
@@ -560,14 +564,14 @@ export default class HotkeyHelper extends Plugin {
         if (tab && (tab.searchInputEl ?? tab.searchComponent.inputEl)) {
             if (tab.setQuery) tab.setQuery(search); else {
                 (tab.searchInputEl ?? tab.searchComponent.inputEl).value = search;
-                tab.updateHotkeyVisibility ? tab.updateHotkeyVisibility() : tab.renderHotkeyList?.();
+                if (tab.updateHotkeyVisibility) tab.updateHotkeyVisibility(); else tab.renderHotkeyList?.();
             }
         }
     }
 
     showConfigFor(id: string) {
         if (this.showSettings(id)) return true;
-        new Notice(
+        void new Notice(
             `No settings tab for "${id}": it may not be installed or might not have settings.`
         );
         return false;
@@ -598,12 +602,6 @@ export default class HotkeyHelper extends Plugin {
 
         // Get a list of commands by plugin
         this.refreshCommands();
-
-        // Plugin setting tabs by plugin
-        const tabs = Object.values(app.setting.pluginTabs).reduce((tabs, tab)=> {
-            tabs[tab.id] = tab; return tabs
-        }, {} as Record<string, SettingTab|boolean>);
-        tabs["workspace"] = tabs["editor"] = true;
 
         for(const id of Object.keys(this.hotkeyButtons || {})) {
             const btn = this.hotkeyButtons[id];

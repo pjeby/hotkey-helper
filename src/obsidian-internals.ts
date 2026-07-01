@@ -1,13 +1,14 @@
-import {i18n} from "i18next";
+import * as o from "obsidian"
 
 declare module "obsidian" {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace Keymap {
         function compileModifiers(mods: string[]): string
         function getModifiers(event: MouseEvent|KeyboardEvent): string
     }
 
     class SettingGroup {
-        addSearch(cb: (component: SearchComponent) => any): this
+        addSearch(cb: (component: SearchComponent) => unknown): this
     }
 
     interface App {
@@ -72,7 +73,7 @@ declare module "obsidian" {
 
     interface Plugins {
         manifests: Record<string, PluginManifest>;
-        plugins: Record<string, Plugin>;
+        plugins: Record<string, o.Plugin>;
 
         enablePlugin(pluginId: string): Promise<boolean>;
         disblePlugin(pluginId: string): Promise<void>;
@@ -80,7 +81,7 @@ declare module "obsidian" {
 
     interface InternalPluginsManager {
         getEnabledPlugins(): InternalPlugin<unknown>[];
-        getPluginById(id: string & keyof InternalPlugins): InternalPlugin<unknown>
+        getPluginById(id: keyof InternalPlugins): InternalPlugin<unknown>
         plugins: InternalPlugins & Record<string, InternalPlugin<unknown>>
     }
 
