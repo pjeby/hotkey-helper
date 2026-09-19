@@ -1,19 +1,19 @@
 import * as o from "obsidian"
 
 declare module "obsidian" {
-    // eslint-disable-next-line @typescript-eslint/no-namespace
+    // eslint-disable-next-line @typescript-eslint/no-namespace -- this is the only way to do this
     namespace Keymap {
         function compileModifiers(mods: string[]): string
         function getModifiers(event: MouseEvent|KeyboardEvent): string
     }
 
-    class SettingGroup {
+    interface SettingGroup {
         addSearch(cb: (component: SearchComponent) => unknown): this
     }
 
     interface App {
-        plugins: Plugins
-        commands: Commands
+        plugins: _Plugins
+        commands: _Commands
         internalPlugins: InternalPluginsManager
         setting: SettingsManager
         hotkeyManager: HotKeyManager
@@ -26,7 +26,7 @@ declare module "obsidian" {
         }
     }
 
-    interface Commands {
+    interface _Commands {
         commands: Record<string, Command>;
         addCommand(cmd: Command): void;
         removeCommand(cmd: Command): void;
@@ -65,13 +65,16 @@ declare module "obsidian" {
         updateHotkeyVisibility?(): void;
         renderHotkeyList?(): void;
         setQuery?(search: string): void;
+
+        // New settings API
+        getElementForDefinition(item: SettingDefinitionItem): HTMLDivElement
     }
 
     interface SearchComponent {
         containerEl: HTMLDivElement;
     }
 
-    interface Plugins {
+    interface _Plugins {
         manifests: Record<string, PluginManifest>;
         plugins: Record<string, o.Plugin>;
 
@@ -102,4 +105,8 @@ declare module "obsidian" {
     }
 
     type ViewFactory = (leaf: WorkspaceLeaf) => View
+
+    interface ButtonComponent {
+        clickCallback: () => void
+    }
 }

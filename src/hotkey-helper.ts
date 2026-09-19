@@ -1,19 +1,14 @@
 import {
     Events, Plugin, Platform, Keymap, Setting, Modal, Notice, debounce, SettingTab, PluginManifest,
-    ExtraButtonComponent, Hotkey, Command, SearchComponent, SettingGroup, requireApiVersion
+    ExtraButtonComponent, Hotkey, Command, SearchComponent, SettingGroup, requireApiVersion,
+    SettingDefinition, SettingDefinitionItem, ButtonComponent
 } from "obsidian";
-import {around, serialize} from "monkey-around";
+import {around} from "monkey-around";
 import {defer, modalSelect, onElement, use, app} from "@ophidian/core";
 import "./obsidian-internals";
 import "../styles.css";
 
-interface OldPluginViewer extends Modal { // pre 1.0
-    autoopen?: string
-    showPlugin(manifest: PluginManifest): Promise<void>
-    updateSearch(): unknown
-    searchEl: HTMLInputElement
-    pluginContentEl: HTMLDivElement
-}
+const BrowsePluginsDesc = i18next.t("setting.third-party-plugin.option-browse-community-plugins-description")
 
 interface NewPluginViewer extends Modal { // 1.0+
     setAutoOpen(pluginId: string): this
@@ -23,6 +18,19 @@ interface NewPluginViewer extends Modal { // 1.0+
     detailsEl: HTMLDivElement
 }
 
+interface CommunityPluginsSettingTab extends SettingTab {
+    buildEnabledSettings(): SettingDefinitionItem[]
+    revealPlugin(id: string): void
+    renderInstalledPlugin(setting: Setting, manifest: PluginManifest): void
+    buildPluginActionsMenu(setting: Setting, manifest: PluginManifest): void
+    pluginDefinitions: Record<string, SettingDefinitionItem>
+}
+
+/** The definition for the "browse" button on Community Plugins */
+let lastBrowseDefinition: SettingDefinitionItem
+
+/** Have we enhanced the browser yet?  */
+let browserIsEnhanced = false
 
 function hotkeyToString(hotkey: Hotkey) {
     return Keymap.compileModifiers(hotkey.modifiers)+"," + hotkey.key.toLowerCase()
@@ -38,17 +46,6 @@ function pluginSettingsAreOpen() {
 
 function settingsAreOpen() {
     return app.setting.containerEl.parentElement !== null
-}
-
-function isPluginViewer(ob: unknown): ob is OldPluginViewer {
-    const o = ob as OldPluginViewer;
-    return (
-        ob instanceof Modal &&
-        Object.prototype.hasOwnProperty.call(o, "autoload") &&
-        typeof o.showPlugin === "function" &&
-        typeof o.updateSearch === "function" &&
-        typeof o.searchEl === "object"
-    );
 }
 
 function isNewPluginViewer(ob: unknown): ob is NewPluginViewer {
@@ -91,8 +88,8 @@ export default class HotkeyHelper extends Plugin {
         }) );
         this.registerEvent( events.on("plugin-settings:after-display",  () => this.refreshButtons(true)) );
 
-        this.registerEvent( events.on("plugin-settings:plugin-control", (setting, manifest, enabled, tabId) => {
-            void (this.globalsAdded || this.addGlobals(tabId, setting.settingEl));
+        this.registerEvent( events.on("plugin-settings:plugin-control", (setting: Setting, _manifest, _enabled, tabId: string) => {
+            void (this.globalsAdded || this.addGlobals(tabId, setting.settingEl as HTMLDivElement));
         }) );
 
         // Refresh the buttons when commands or setting tabs are added or removed
@@ -158,11 +155,41 @@ export default class HotkeyHelper extends Plugin {
             // Trap opens of the community plugins viewer from the settings panel
             onElement(
                 community.containerEl, "click",
-                ".mod-cta, .installed-plugins-container .setting-item-info",
+                ".mod-cta, .installed-plugins-container .setting-item-info, .setting-item[data-plugin-id] .setting-item-info",
                 enhanceViewer,
                 true
             )
         );
+
+        // New API?  Capture "Browse" button definition and rig it to enhance on click
+        if (community && requireApiVersion("1.13.7")) {
+            this.register(around(community, {
+                buildEnabledSettings(next) { return function() {
+                    const items: SettingDefinition[] = next.call(this)
+                    const browseButton = items.find(i => i.desc === BrowsePluginsDesc)
+                    lastBrowseDefinition = browseButton
+                    if (browseButton?.render) {
+                        const oldRender = browseButton.render
+                        browseButton.render = (s: Setting, g: SettingGroup) => {
+                            const remove = around(s, {
+                                addButton(next) { return function(cb) {
+                                    return next.call(this, (b: ButtonComponent) => {
+                                        remove()
+                                        cb(b)
+                                        around(b, {clickCallback(next) { return function() {
+                                            enhanceViewer()
+                                            next()
+                                        }}})
+                                    })
+                                }}
+                            })
+                            return oldRender(s, g)
+                        }
+                    }
+                    return items
+                }},
+            }))
+        }
 
         // Trap opens of the community plugins viewer via URL
         this.register(
@@ -383,18 +410,27 @@ export default class HotkeyHelper extends Plugin {
     }
 
     enhanceViewer() {
+        if (browserIsEnhanced) return;
         const plugin = (() => this)(), remove: () => void = around(Modal.prototype, {
             open(old) {
                 return function(...args) {
                     if (isNewPluginViewer(this)) {
-                        defer(() => {
+                        function updateAfterOpen() {
                             if (plugin.lastSearch["community-plugins"]) {
                                 this.search.inputEl.value = plugin.lastSearch["community-plugins"];
                                 this.search.inputEl.dispatchEvent(new Event('input'));
                             }
-                        });
-                        plugin.currentViewer = this;
-                        around(this, {
+                        }
+                        defer(updateAfterOpen.bind(this))
+                        browserIsEnhanced = true;
+                        plugin.currentViewer = this.constructor?.activeInstance ?? this;
+                        plugin.register(around(this.constructor.prototype as NewPluginViewer, {
+                            open(old) { return function(...args) {
+                                const result = old.apply(this, args)
+                                plugin.currentViewer = this.constructor?.activeInstance ?? this
+                                defer(updateAfterOpen.bind(this))
+                                return result
+                            }},
                             close(old) { return function(...args: unknown[]) {
                                 plugin.currentViewer = null;
                                 return old.apply(this, args);
@@ -416,49 +452,9 @@ export default class HotkeyHelper extends Plugin {
                                 }
                                 return res;
                             }}
-                        })
+                        }))
                     }
-                    // Pre 1.0
-                    if (isPluginViewer(this)) {
-                        defer(() => {
-                            if (plugin.lastSearch["community-plugins"]) {
-                                // Detach the old search area, in case the empty search is still running
-                                const newResults = this.searchResultEl.cloneNode();
-                                this.searchContainerEl.replaceChild(newResults, this.searchResultEl);
-                                this.searchResultEl = newResults;
-                                // Force an update; use an event so that the "x" appears on search
-                                this.searchEl.value = plugin.lastSearch["community-plugins"];
-                                this.searchEl.dispatchEvent(new Event('input'));
-                            }
-                            this.searchEl.select();
-                        });
-                        plugin.currentViewer = this;
-                        around(this, {
-                            updateSearch: serialize,  // prevent race conditions
-
-                            close(old) { return function(...args: unknown[]) {
-                                plugin.currentViewer = null;
-                                return old.apply(this, args);
-                            }},
-
-                            showPlugin(old) { return async function(manifest: PluginManifest){
-                                const res = await old.call(this, manifest);
-                                if (plugin.app.plugins.plugins[manifest.id]) {
-                                    const hotkeysName = i18next.t("setting.hotkeys.name");
-                                    const buttons = this.pluginContentEl.find("button").parentElement;
-                                    for (const b of buttons.findAll("button")) {
-                                        if (b.textContent === hotkeysName) {
-                                            plugin.hotkeyButtons[manifest.id] = {
-                                                setTooltip(tip) {b.title = tip; return this; }, extraSettingsEl: b
-                                            }
-                                        };
-                                    }
-                                    plugin.refreshButtons(true);
-                                }
-                                return res;
-                            }}
-                        })
-                    }
+                    remove()
                     return old.apply(this, args);
                 }
             }
@@ -466,11 +462,13 @@ export default class HotkeyHelper extends Plugin {
         void activeWindow.sleep(0).then(remove);
     }
 
-    getSettingsTab(id: string) {
+    getSettingsTab(id: "community-plugins"): CommunityPluginsSettingTab
+    getSettingsTab(id: string): SettingTab
+    getSettingsTab(id: string): SettingTab {
         return app.setting.settingTabs.filter(t => t.id === id).shift() as SettingTab;
     }
 
-    addPluginSettingEvents(tabId: string, old: SettingTab["display"]) {
+    addPluginSettingEvents(tabId: string, old: () => void) {
         const app = this.app, plugin = (() => this)(); // eslint yak-shaving
         let in_event = false;
 
@@ -536,7 +534,28 @@ export default class HotkeyHelper extends Plugin {
             return;
         }
 
-        if (!this.showSettings("community-plugins")) return;
+        const tab = this.showSettings("community-plugins")
+        if (!tab) return;
+
+        // New API?  Try to click the specific plugin or general browse button
+        if (lastBrowseDefinition) {
+            if (id) {
+                if (tab.pluginDefinitions[id]) {
+                    const div = tab.getElementForDefinition(tab.pluginDefinitions[id])
+                    if (div) {
+                        try { div.find(".setting-item-info").click(); return } catch { /* */ }
+                    }
+                }
+                // Fall through to older approach
+            } else {
+                const div = tab.getElementForDefinition(lastBrowseDefinition)
+                if (div) {
+                    try { div.find("button").click(); return } catch { /* */ }
+                }
+                // Fall through to older approach
+            }
+        }
+
         const remove = around(Modal.prototype, {
             open(old) {
                 return function(...args) {
@@ -550,12 +569,14 @@ export default class HotkeyHelper extends Plugin {
         // XXX handle nav to not-cataloged plugin
     }
 
-    showSettings(id: string) {
+    showSettings(id: "community-plugins"): CommunityPluginsSettingTab
+    showSettings(id: string): SettingTab
+    showSettings(id: string): SettingTab {
         this.currentViewer?.close();  // close the plugin browser if open
         void (settingsAreOpen() || app.setting.open());
         if (id) {
             if (app.setting.activeTab?.id !== id) app.setting.openTabById(id);
-            return app.setting.activeTab?.id === id ? app.setting.activeTab : false
+            return app.setting.activeTab?.id === id ? app.setting.activeTab : undefined
         }
     }
 

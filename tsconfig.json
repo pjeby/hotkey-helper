@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "inlineSourceMap": true,
+    "strictNullChecks": false,
     "inlineSources": true,
     "esModuleInterop": true,
     "module": "NodeNext",

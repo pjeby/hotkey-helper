@@ -2,17 +2,19 @@ lockfileVersion: 5.4
 
 specifiers:
   '@ophidian/build': ^1.2
-  '@ophidian/core': 0.0.23
+  '@ophidian/core': ophidian-lib/core
   i18next: ^20.3.2
   monkey-around: ^2.1
-  obsidian: 1.3.5
+  obsidian: obsidianmd/obsidian-api
+  uneventful: ^0.0.10
 
 devDependencies:
   '@ophidian/build': 1.2.1
-  '@ophidian/core': 0.0.23
+  '@ophidian/core': github.com/ophidian-lib/core/81d7d1463c75f7b2feebfc56adee430dc7d700f1_dgsfjjhs67h6jrdxpymthtvutm
   i18next: 20.6.1
   monkey-around: 2.3.0
-  obsidian: 1.3.5
+  obsidian: github.com/obsidianmd/obsidian-api/cc1744324150c632416857c98964f87b1574a5fc
+  uneventful: 0.0.10
 
 packages:
 
@@ -255,39 +257,20 @@ packages:
       sass: 1.47.0
     dev: true
 
-  /@ophidian/core/0.0.23:
-    resolution: {integrity: sha512-R4DcgLsqNIzrfDsDTc6EcUoCkJGgQw+SDiEC4u/vPn3W0MizWnz4lWuU5OZv32dY7RbnXj3qMFBGXfg8ez4mFA==}
-    dependencies:
-      '@preact/signals-core': 1.8.0
-      defaults: 2.0.2
-      i18next: 20.6.1
-      monkey-around: 2.3.0
-      obsidian: 1.3.5
-      to-use: 0.3.3
-      wonka: 6.3.4
-    transitivePeerDependencies:
-      - '@codemirror/state'
-      - '@codemirror/view'
-    dev: true
-
-  /@preact/signals-core/1.8.0:
-    resolution: {integrity: sha512-OBvUsRZqNmjzCZXWLxkZfhcgT+Fk8DDcT/8vD6a1xhDemodyy87UJRJfASMuSD8FaAIeGgGm85ydXhm7lr4fyA==}
-    dev: true
-
   /@types/codemirror/5.60.8:
     resolution: {integrity: sha512-VjFgDF/eB+Aklcy15TtOTLQeMjTo07k7KAjql8OK5Dirr7a6sJY4T1uVBDuTVG9VEmn1uUsohOpYnVfgC6/jyw==}
     dependencies:
-      '@types/tern': 0.23.4
+      '@types/tern': 0.23.9
     dev: true
 
-  /@types/estree/0.0.51:
-    resolution: {integrity: sha512-CuPgU6f3eT/XgKKPqKd/gLZV1Xmvf1a2R5POBOGQa6uv82xpls89HU5zKeVoyR8XzHd1RGNOlQlvUe3CFkjWNQ==}
+  /@types/estree/1.0.6:
+    resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
     dev: true
 
-  /@types/tern/0.23.4:
-    resolution: {integrity: sha512-JAUw1iXGO1qaWwEOzxTKJZ/5JxVeON9kvGZ/osgZaJImBnyjyn0cjovPsf6FNLmyGY8Vw9DoXZCMlfMkMwHRWg==}
+  /@types/tern/0.23.9:
+    resolution: {integrity: sha512-ypzHFE/wBzh+BlH6rrBgS5I/Z7RD21pGhZ2rltb/+ZrVM1awdZwjx7hE5XfuYgHWk9uvV5HLZN3SloevCAp3Bw==}
     dependencies:
-      '@types/estree': 0.0.51
+      '@types/estree': 1.0.6
     dev: true
 
   /ansi-styles/4.3.0:
@@ -713,12 +696,16 @@ packages:
       minimist: 1.2.8
     dev: true
 
-  /moment/2.29.4:
-    resolution: {integrity: sha512-5LC9SOxjSc2HF6vO2CyuTDNivEdoz2IvyJJGj6X8DJ0eFyfszE0QiEd+iXmBvUP3WHxSjFH/vIsA0EN00cgr8w==}
+  /moment/2.30.1:
+    resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
     dev: true
 
   /monkey-around/2.3.0:
     resolution: {integrity: sha512-QWcCUWjqE/MCk9cXlSKZ1Qc486LD439xw/Ak8Nt6l2PuL9+yrc9TJakt7OHDuOqPRYY4nTWBAEFKn32PE/SfXA==}
+    dev: true
+
+  /monkey-around/3.0.0:
+    resolution: {integrity: sha512-jL6uY2lEAoaHxZep1cNRkCZjoIWY4g5VYCjriEWmcyHU7w8NU1+JH57xE251UVTohK0lCxMjv0ZV4ByDLIXEpw==}
     dev: true
 
   /normalize-path/3.0.0:
@@ -729,16 +716,6 @@ packages:
   /object-assign/4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
-    dev: true
-
-  /obsidian/1.3.5:
-    resolution: {integrity: sha512-2Zg9vlaEZw6fd2AohcdrC1kV+lZcb4a1Ju6GcIwdWaGOWj6l//7wbKD6vVhO2GlfoQRGARYu++eLo7FEc+f6Tw==}
-    peerDependencies:
-      '@codemirror/state': ^6.0.0
-      '@codemirror/view': ^6.0.0
-    dependencies:
-      '@types/codemirror': 5.60.8
-      moment: 2.29.4
     dev: true
 
   /once/1.4.0:
@@ -888,6 +865,10 @@ packages:
     resolution: {integrity: sha512-i5hrYhcDyrjl4tF2EvZnmL8VAMdMYnMFeX1bIF0ekn2gKgs76UhZcHt+hLIUKh0fIii+Ix6uUp5W6yYlU5+Z8A==}
     dev: true
 
+  /uneventful/0.0.10:
+    resolution: {integrity: sha512-uSgjcmhgH8tqwT8fe8iVIitUbfZfmha7Xxi2cu/ZpJsvl+iQtYfFPjF/tA/s+Co8pbIo08jZh70Kww9PraCSAg==}
+    dev: true
+
   /universalify/2.0.1:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
     engines: {node: '>= 10.0.0'}
@@ -897,10 +878,37 @@ packages:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
 
-  /wonka/6.3.4:
-    resolution: {integrity: sha512-CjpbqNtBGNAeyNS/9W6q3kSkKE52+FjIj7AkFlLr11s/VWGUu6a2CdYSdGxocIhIVjaW/zchesBQUKPVU69Cqg==}
-    dev: true
-
   /wrappy/1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+    dev: true
+
+  github.com/obsidianmd/obsidian-api/cc1744324150c632416857c98964f87b1574a5fc:
+    resolution: {tarball: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/cc1744324150c632416857c98964f87b1574a5fc}
+    name: obsidian
+    version: 1.13.2
+    peerDependencies:
+      '@codemirror/state': 6.7.0
+      '@codemirror/view': 6.43.5
+    dependencies:
+      '@types/codemirror': 5.60.8
+      moment: 2.30.1
+    dev: true
+
+  github.com/ophidian-lib/core/81d7d1463c75f7b2feebfc56adee430dc7d700f1_dgsfjjhs67h6jrdxpymthtvutm:
+    resolution: {tarball: https://codeload.github.com/ophidian-lib/core/tar.gz/81d7d1463c75f7b2feebfc56adee430dc7d700f1}
+    id: github.com/ophidian-lib/core/81d7d1463c75f7b2feebfc56adee430dc7d700f1
+    name: '@ophidian/core'
+    version: 0.0.24
+    prepare: true
+    requiresBuild: true
+    peerDependencies:
+      obsidian: 1.3.5
+      uneventful: ^0.0.10
+    dependencies:
+      defaults: 2.0.2
+      i18next: 20.6.1
+      monkey-around: 3.0.0
+      obsidian: github.com/obsidianmd/obsidian-api/cc1744324150c632416857c98964f87b1574a5fc
+      to-use: 0.3.3
+      uneventful: 0.0.10
     dev: true
